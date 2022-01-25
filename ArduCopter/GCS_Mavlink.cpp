@@ -1176,7 +1176,8 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
 
         break;
     }
-
+    
+//Customization_Ref//
     case MAVLINK_MSG_ID_SET_POSITION_TARGET_LOCAL_NED:     // MAV ID: 84
     {
         // decode packet
@@ -1279,6 +1280,8 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
 
         break;
     }
+//Customization_Ref//
+
 
     case MAVLINK_MSG_ID_SET_POSITION_TARGET_GLOBAL_INT:    // MAV ID: 86
     {

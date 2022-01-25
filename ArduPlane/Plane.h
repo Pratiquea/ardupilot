@@ -872,6 +872,9 @@ private:
     void calc_nav_yaw_coordinated(float speed_scaler);
     void calc_nav_yaw_course(void);
     void calc_nav_yaw_ground(void);
+//Customization//
+    void rotate_body_frame_to_NE(float &x, float &y);
+//Customization//
 
     // Log.cpp
     uint32_t last_log_fast_ms;
