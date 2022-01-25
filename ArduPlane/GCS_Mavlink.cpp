@@ -1375,14 +1375,12 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             // convert to cm
             pos_vector = Vector3f(packet.x * 100.0f, packet.y * 100.0f, -packet.z * 100.0f);
             // rotate to body-frame if necessary
-            if (packet.coordinate_frame == MAV_FRAME_BODY_NED /*||
-                packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED*/) {
+            if (packet.coordinate_frame == MAV_FRAME_BODY_NED) {
                 plane.quadplane.rotate_body_frame_to_NE(pos_vector.x, pos_vector.y);
             }
             // add body offset if necessary
             if (packet.coordinate_frame == MAV_FRAME_LOCAL_OFFSET_NED ||
-                packet.coordinate_frame == MAV_FRAME_BODY_NED /*||
-                packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED*/) {
+                packet.coordinate_frame == MAV_FRAME_BODY_NED ) {
                 pos_vector += plane.quadplane.inertial_nav.get_position();
             }
         }
