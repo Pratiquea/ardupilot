@@ -1417,7 +1417,7 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             // plane.mode_guided.set_destination_posvel(pos_vector, vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
         // } else 
         if (pos_ignore && !vel_ignore) {
-            plane.mode_guided.set_velocity(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            plane.mode_guided.set_velocity_setpoint(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
         }
         // Not yet implemmented
         //  else if (!pos_ignore && vel_ignore) {
