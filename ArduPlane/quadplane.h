@@ -263,6 +263,21 @@ private:
     void guided_start(void);
     void guided_update(void);
 
+    // initialize velocity controller for guided mode
+    void vel_control_start();
+
+    // velocity controller run/update for guided mode
+    void vel_control_run();
+
+    // helper functions for setting velocity for pos_control
+    void set_desired_velocity_with_zero_accel(const Vector3f& vel_des);
+    
+    // set desired yaw rate for guided mode attitude controller
+    void set_desired_yaw_rate(const float& yaw_rate_cds);
+
+    // set desired velocity setpoint for controller to track
+    void set_velocity_setpoint(const Vector3f& velocity, bool use_yaw = false, float yaw_cd = 0.0, bool use_yaw_rate = false, float yaw_rate_cds = 0.0, bool yaw_relative = false, bool log_request = true);
+
     void update_throttle_suppression(void);
 
     void run_z_controller(void);
