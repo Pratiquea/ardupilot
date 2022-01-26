@@ -1197,11 +1197,12 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         POSITION_TARGET_TYPEMASK_AX_IGNORE |
         POSITION_TARGET_TYPEMASK_AY_IGNORE |
         POSITION_TARGET_TYPEMASK_AZ_IGNORE;
-
+/*
     constexpr uint32_t MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE =
         POSITION_TARGET_TYPEMASK_YAW_IGNORE;
     constexpr uint32_t MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE =
         POSITION_TARGET_TYPEMASK_YAW_RATE_IGNORE;
+*/        
 
 //Customization//
     switch (msg.msgid) {
@@ -1361,8 +1362,8 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         bool pos_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE;
         bool vel_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE;
         bool acc_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE;
-        bool yaw_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
-        bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
+        //bool yaw_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
+        //bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
         
         // exit immediately if acceleration provided
         if (!acc_ignore) {
@@ -1376,7 +1377,7 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             pos_vector = Vector3f(packet.x * 100.0f, packet.y * 100.0f, -packet.z * 100.0f);
             // rotate to body-frame if necessary
             if (packet.coordinate_frame == MAV_FRAME_BODY_NED) {
-                plane.quadplane.rotate_body_frame_to_NE(pos_vector.x, pos_vector.y);
+                plane.rotate_body_frame_to_NE(pos_vector.x, pos_vector.y);
             }
             // add body offset if necessary
             if (packet.coordinate_frame == MAV_FRAME_LOCAL_OFFSET_NED ||
@@ -1384,18 +1385,19 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
                 pos_vector += plane.quadplane.inertial_nav.get_position();
             }
         }
-/*
+
         // prepare velocity
         Vector3f vel_vector;
         if (!vel_ignore) {
             // convert to cm
             vel_vector = Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f);
             // rotate to body-frame if necessary
-            if (packet.coordinate_frame == MAV_FRAME_BODY_NED || packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED) {
-                copter.rotate_body_frame_to_NE(vel_vector.x, vel_vector.y);
+            if (packet.coordinate_frame == MAV_FRAME_BODY_NED || 
+                packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED) {
+                plane.rotate_body_frame_to_NE(vel_vector.x, vel_vector.y);
             }
         }
-
+/*
         // prepare yaw
         float yaw_cd = 0.0f;
         bool yaw_relative = false;
@@ -1407,16 +1409,20 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         if (!yaw_rate_ignore) {
             yaw_rate_cds = ToDeg(packet.yaw_rate) * 100.0f;
         }
-
-        // send request
-        if (!pos_ignore && !vel_ignore) {
-            copter.mode_guided.set_destination_posvel(pos_vector, vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
-        } else if (pos_ignore && !vel_ignore) {
-            copter.mode_guided.set_velocity(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
-        } else if (!pos_ignore && vel_ignore) {
-            copter.mode_guided.set_destination(pos_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
-        }
 */
+        // send request
+        //if (!pos_ignore && !vel_ignore) {
+        //    plane.mode_guided.set_destination_posvel(pos_vector, vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+        //} else if (pos_ignore && !vel_ignore) {
+        //    plane.mode_guided.set_velocity(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+        //} else if (!pos_ignore && vel_ignore) {
+        //    plane.mode_guided.set_destination(pos_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+        //}
+
+        //if (pos_ignore && !vel_ignore) {
+        //    plane.mode_guided.set_velocity(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+        //}        
+
         break;
     }
 //Customization//

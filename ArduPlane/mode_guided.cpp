@@ -55,3 +55,27 @@ bool ModeGuided::handle_guided_request(Location target_loc)
 
     return true;
 }
+//Customization//
+
+// guided_set_velocity - sets guided mode's target velocity
+//void ModeGuided::set_velocity(const Vector3f& velocity, bool use_yaw, float yaw_cd, bool use_yaw_rate, float yaw_rate_cds, bool relative_yaw)
+//{
+    /* 
+    //Prateek has modified this part..
+
+    // check we are in velocity control mode
+    if (guided_mode != SubMode::Velocity) {
+        vel_control_start();
+    }
+
+    // set yaw state
+    set_yaw_state(use_yaw, yaw_cd, use_yaw_rate, yaw_rate_cds, relative_yaw);
+
+    // record velocity target
+    guided_vel_target_cms = velocity;*/
+//    vel_update_time_ms = millis();
+
+
+//}
+
+//Customization//
