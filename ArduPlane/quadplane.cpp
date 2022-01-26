@@ -542,9 +542,9 @@ const AP_Param::ConversionInfo q_conversion_table[] = {
 #define GUIDED_POSVEL_TIMEOUT_MS    3000    // guided mode's position-velocity controller times out after 3seconds with no new updates
 #define GUIDED_ATTITUDE_TIMEOUT_MS  1000    // guided mode's attitude controller times out after 1 second with no new updates
 
-static Vector3p guided_pos_target_cm;       // position target (used by posvel controller only)
+//static Vector3p guided_pos_target_cm;       // position target (used by posvel controller only)
 static Vector3f guided_vel_target_cms;      // velocity target (used by velocity controller and posvel controller)
-static uint32_t posvel_update_time_ms;      // system time of last target update to posvel controller (i.e. position and velocity update)
+//static uint32_t posvel_update_time_ms;      // system time of last target update to posvel controller (i.e. position and velocity update)
 static uint32_t vel_update_time_ms;         // system time of last target update to velocity controller
 
 // desired yaw rate from mavlink message
@@ -3485,7 +3485,8 @@ void QuadPlane::vel_control_run()
         if (!pos_control->get_vel_desired_cms().is_zero()) 
         {
             // set desired velocity to zero
-            set_desired_velocity_with_zero_accel(Vector3f(0.0f, 0.0f, 0.0f));
+            Vector3f zero_vec=Vector3f(0.0f, 0.0f, 0.0f);
+            set_desired_velocity_with_zero_accel(zero_vec);
         }
         set_desired_yaw_rate(0.0f);
     }
@@ -3506,7 +3507,7 @@ void QuadPlane::vel_control_run()
 }
 
 //helper function to set desired velocity for position controller
-void QuadPlane::set_desired_velocity_with_zero_accel(const Vector3f& vel_des)
+void QuadPlane::set_desired_velocity_with_zero_accel(Vector3f& vel_des)
 {
     pos_control->input_vel_accel_xy(vel_des.xy(),Vector2f());
     pos_control->input_vel_accel_z(vel_des.z, 0,false);
@@ -3515,7 +3516,7 @@ void QuadPlane::set_desired_velocity_with_zero_accel(const Vector3f& vel_des)
 
 // set velocity setpoint / desired  velocity / target velocity for guided mode
 //  external nav controller
-void ModeGuided::set_velocity_setpoint(const Vector3f& velocity, bool use_yaw, 
+void QuadPlane::set_velocity_setpoint(const Vector3f& velocity, bool use_yaw, 
     float yaw_cd, bool use_yaw_rate, float yaw_rate_cds, bool relative_yaw, 
     bool log_request)
 {
@@ -3530,15 +3531,15 @@ void ModeGuided::set_velocity_setpoint(const Vector3f& velocity, bool use_yaw,
     // else if(use_yaw)
     // {
     // }
-    guided_vel_target_cms = velocity_setpoint;
+    guided_vel_target_cms = velocity;
     gcs().send_text(MAV_SEVERITY_INFO, "setting target velocity" );
-    vel_update_time_us = millis();
+    vel_update_time_ms = millis();
 
     //log target
-    if(log_request)
-    {
-        plane.Log_Write_GuidedTarget(guided_mode, Vector3f(), velocity);
-    }
+    //if(log_request)
+    //{
+    //    plane.Log_Write_GuidedTarget(guided_mode, Vector3f(), velocity);
+    //}
 }
 
 // set desired yaw rate for guided mode external nav controller
