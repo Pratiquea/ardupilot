@@ -3434,6 +3434,22 @@ void QuadPlane::guided_start(void)
 /*
   update guided mode control
  */
+// void QuadPlane::guided_update(void)
+// {
+//     if (plane.control_mode == &plane.mode_guided && guided_takeoff && plane.current_loc.alt < plane.next_WP_loc.alt) {
+//         throttle_wait = false;
+//         set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+//         takeoff_controller();
+//     } else {
+//         guided_takeoff = false;
+//         // run VTOL position controller
+//         vtol_position_controller();
+//     }
+// }
+
+/*
+  update guided mode control
+ */
 void QuadPlane::guided_update(void)
 {
     if (plane.control_mode == &plane.mode_guided && guided_takeoff && plane.current_loc.alt < plane.next_WP_loc.alt) {
@@ -3445,8 +3461,8 @@ void QuadPlane::guided_update(void)
             poscontrol.set_state(QPOS_POSITION2);
         }
         guided_takeoff = false;
-        // run VTOL position controller
-        vtol_position_controller();
+        // run the velocity controller loop
+        plane.quadplane.vel_control_run();
     }
 }
 
@@ -3609,6 +3625,7 @@ bool QuadPlane::do_user_takeoff(float takeoff_altitude)
     if ((options & OPTION_DISABLE_GROUND_EFFECT_COMP) == 0) {
         ahrs.set_takeoff_expected(true);
     }
+    gcs().send_text(MAV_SEVERITY_INFO, "User Takeoff fx completed");
     return true;
 }
 
