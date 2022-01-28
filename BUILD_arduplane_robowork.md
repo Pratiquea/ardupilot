@@ -41,7 +41,7 @@ git submodule update --init --recursive
 * **Helpful Tips**
 
     - If receiving ` [errno 13] permission denied: 'c:\\cygwin64\\tmp\ `, reinstall Cygwin with required packages, and make sure that gcc compiler and other module paths are detected from `usr/bin/..` as in the picture below. If `C:/Users/..` directory is detected, check path in `Environment Variables -> System Variables -> Path` and delete the issue-related path.
-    [waf-compilation]()  
+    ![waf-compilation](waf-compilation-ss.png)  
     
     - If the build fails and receiving `ModuleNotFoundError: No module named 'future'` install future:  
     ```sh
