@@ -212,7 +212,9 @@ public:
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
-    void navigate() override;
+    // removing navigate mehtod since we don't need waypoint navigation for
+    // auto docking.
+    // void navigate() override;
 
     virtual bool is_guided_mode() const override { return true; }
 

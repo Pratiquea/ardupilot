@@ -65,12 +65,11 @@ void ModeGuided::update()
     }
 }
 
-void ModeGuided::navigate()
-{
-    gcs().send_text(MAV_SEVERITY_INFO,"In ModeGuided::navigate()");
-    // Zero indicates to use WP_LOITER_RAD
-    plane.update_loiter(0);
-}
+// removing navigate mehtod since we don't need waypoint navigation for
+// auto docking.
+// void ModeGuided::navigate()
+// {
+// }
 
 bool ModeGuided::handle_guided_request(Location target_loc)
 {
