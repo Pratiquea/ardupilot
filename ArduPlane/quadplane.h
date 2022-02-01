@@ -263,6 +263,11 @@ private:
     void guided_start(void);
     void guided_update(void);
 
+    // set the vtol_loiter variable under auto_state struct of plane to true
+    // i.e. enable VTOL behaviour
+    void set_vtol_loiter(void);
+
+
     // initialize velocity controller for guided mode
     void vel_control_start();
 

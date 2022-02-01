@@ -2138,25 +2138,31 @@ void QuadPlane::poscontrol_init_approach(void)
         poscontrol.set_state(QPOS_POSITION1);
         gcs().send_text(MAV_SEVERITY_INFO,"VTOL Position1 d=%.1f", dist);
     } else if (poscontrol.get_state() != QPOS_APPROACH) {
-        // check if we are close to the destination. We don't want to
-        // do a full approach when very close
-        if (dist < transition_threshold()) {
-            if (tailsitter.enabled() || motors->get_desired_spool_state() == AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED) {
-                gcs().send_text(MAV_SEVERITY_INFO,"VTOL Position1 d=%.1f", dist);
-                poscontrol.set_state(QPOS_POSITION1);
-                transition->set_last_fw_pitch();
-            } else {
-                gcs().send_text(MAV_SEVERITY_INFO,"VTOL airbrake v=%.1f d=%.0f sd=%.0f h=%.1f",
-                                plane.ahrs.groundspeed(),
-                                dist,
-                                stopping_distance(),
-                                plane.relative_ground_altitude(plane.g.rangefinder_landing));
-                poscontrol.set_state(QPOS_AIRBRAKE);
-            }
-        } else {
-            gcs().send_text(MAV_SEVERITY_INFO,"VTOL approach d=%.1f", dist);
-            poscontrol.set_state(QPOS_APPROACH);
-        }
+        // Skipping logic that corresponds to fixed wing 
+        // operation and directly go in to QPOS_POSITION2 corresponding
+        // to VTOL mode operations since we don't want fixed winged flight
+        // behaviour during guided mode for now. 
+        /* // check if we are close to the destination. We don't want to
+           // do a full approach when very close
+           if (dist < transition_threshold()) {
+               if (tailsitter.enabled() || motors->get_desired_spool_state() == AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED) {
+                   gcs().send_text(MAV_SEVERITY_INFO,"VTOL Position1 d=%.1f", dist);
+                   poscontrol.set_state(QPOS_POSITION1);
+                   transition->set_last_fw_pitch();
+               } else {
+                   gcs().send_text(MAV_SEVERITY_INFO,"VTOL airbrake v=%.1f d=%.0f sd=%.0f h=%.1f",
+                                   plane.ahrs.groundspeed(),
+                                   dist,
+                                   stopping_distance(),
+                                   plane.relative_ground_altitude(plane.g.rangefinder_landing));
+                   poscontrol.set_state(QPOS_AIRBRAKE);
+               }
+           } else {
+               gcs().send_text(MAV_SEVERITY_INFO,"VTOL approach d=%.1f", dist);
+               poscontrol.set_state(QPOS_APPROACH);
+           } */
+        gcs().send_text(MAV_SEVERITY_INFO,"VTOL approach d=%.1f", dist);
+        poscontrol.set_state(QPOS_POSITION2);
         poscontrol.thrust_loss_start_ms = 0;
     }
     poscontrol.pilot_correction_done = false;
@@ -2487,6 +2493,12 @@ void QuadPlane::vtol_position_controller(void)
             // re-calculate the target speed profile
             poscontrol.pos1_speed_limit = sqrtf(rel_groundspeed_sq);
         }
+        // commenting velocity control based on GPS waypoints
+        // pos_control->set_vel_desired_xy_cms(target_speed_xy * 100);
+
+        // set desired velocity as guided_vel_target_cms global variable which is set by
+        // mavlink message.
+        pos_control->set_vel_desired_cms(guided_vel_target_cms);
 
         // use input shaping and abide by accel and jerk limits
         pos_control->input_vel_accel_xy(target_speed_xy_cms, target_accel_cms);
@@ -3419,6 +3431,7 @@ float QuadPlane::get_weathervane_yaw_rate_cds(void)
 void QuadPlane::guided_start(void)
 {
     guided_takeoff = false;
+    // setup the target position based on plane.next_WP_loc
     setup_target_position();
     int32_t from_alt;
     int32_t to_alt;
@@ -3429,6 +3442,11 @@ void QuadPlane::guided_start(void)
         poscontrol.slow_descent = (plane.current_loc.alt > plane.next_WP_loc.alt);
     }
     poscontrol_init_approach();
+}
+
+void QuadPlane::set_vtol_loiter(void)
+{
+    plane.auto_state.vtol_loiter = true;
 }
 
 /*
@@ -3452,17 +3470,15 @@ void QuadPlane::guided_start(void)
  */
 void QuadPlane::guided_update(void)
 {
-    if (plane.control_mode == &plane.mode_guided && guided_takeoff && plane.current_loc.alt < plane.next_WP_loc.alt) {
+    if (plane.control_mode == &plane.mode_guided && guided_takeoff && plane.current_loc.alt < plane.next_WP_loc.alt)
+    {
         throttle_wait = false;
         set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
         takeoff_controller();
     } else {
-        if (guided_takeoff) {
-            poscontrol.set_state(QPOS_POSITION2);
-        }
         guided_takeoff = false;
         // run the velocity controller loop
-        plane.quadplane.vel_control_run();
+        vel_control_run();
     }
 }
 

@@ -44,13 +44,20 @@
 
 bool ModeGuided::_enter()
 {
-    gcs().send_text(MAV_SEVERITY_INFO,"Enabled guided mode");
     // If plane is in guided mode and loitering in VTOL configuration
     if(plane.quadplane.guided_mode_enabled())
     {
+        // Sets target position based on plane.next_WP_loc and initializes the poscontrol 
+        // STATE of the vehicle (fixed wing or VTOL or transition phase)
+        plane.quadplane.guided_start();
+        // Put in VTOL mode if not already in VTOL. This might be redundant.
+        if(!plane.auto_state.vtol_loiter)
+        {
+            plane.quadplane.set_vtol_loiter();
+        }
         // start in velocity control mode (maintaining similar behaviour to copter)
         plane.quadplane.vel_control_start();
-        gcs().send_text(MAV_SEVERITY_INFO,"initiated position control");
+        gcs().send_text(MAV_SEVERITY_INFO,"initiated velocity control in guided mode");
     }
     return true;
 }
