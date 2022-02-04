@@ -3539,10 +3539,13 @@ void QuadPlane::vel_control_run()
 }
 
 //helper function to set desired velocity for position controller
-void QuadPlane::set_desired_velocity_with_zero_accel(Vector3f& vel_des)
+void QuadPlane::set_desired_velocity_with_zero_accel(const Vector3f& vel_des)
 {
-    pos_control->input_vel_accel_xy(vel_des.xy(),Vector2f());
-    pos_control->input_vel_accel_z(vel_des.z, 0,false);
+    //creating a l-value variable to make the function compatible with both 
+    // l-value argument and r-value argument
+    Vector3f vel_des_l_value = vel_des; 
+    pos_control->input_vel_accel_xy(vel_des_l_value.xy(),Vector2f());
+    pos_control->input_vel_accel_z(vel_des_l_value.z, 0,false);
 }
 
 
