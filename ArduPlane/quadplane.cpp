@@ -2128,7 +2128,7 @@ void QuadPlane::run_xy_controller(float accel_limit)
 }
 
 /*
-  initialise QPOS_APPROACH
+  initialise QPOS_POSITION2
  */
 void QuadPlane::poscontrol_init_approach(void)
 {
@@ -2137,7 +2137,7 @@ void QuadPlane::poscontrol_init_approach(void)
         // go straight to QPOS_POSITION1
         poscontrol.set_state(QPOS_POSITION1);
         gcs().send_text(MAV_SEVERITY_INFO,"VTOL Position1 d=%.1f", dist);
-    } else if (poscontrol.get_state() != QPOS_APPROACH) {
+    } else if (poscontrol.get_state() != QPOS_APPROACH || poscontrol.get_state() != QPOS_POSITION2) {
         // Skipping logic that corresponds to fixed wing 
         // operation and directly go in to QPOS_POSITION2 corresponding
         // to VTOL mode operations since we don't want fixed winged flight
