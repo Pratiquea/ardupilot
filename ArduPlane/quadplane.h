@@ -274,6 +274,10 @@ private:
     // position controller run/update for guided mode
     void pos_control_run();
 
+    // helper function for setting desired position and velocity 
+    void set_desired_position_velocity_with_zero_accel(const Vector3p& pos_des,
+                                const Vector3f& vel_des);
+
     // velocity controller run/update for guided mode
     void vel_control_run();
 

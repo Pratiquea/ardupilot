@@ -542,7 +542,7 @@ const AP_Param::ConversionInfo q_conversion_table[] = {
 #define GUIDED_POSVEL_TIMEOUT_MS    3000    // guided mode's position-velocity controller times out after 3seconds with no new updates
 #define GUIDED_ATTITUDE_TIMEOUT_MS  1000    // guided mode's attitude controller times out after 1 second with no new updates
 
-static Vector3f guided_pos_target_cm;       // position target (used by posvel controller only)
+static Vector3p guided_pos_target_cm;       // position target (used by posvel controller only)
 static Vector3f guided_vel_target_cms;      // velocity target (used by velocity controller and possibly pos controller)
 static uint32_t pos_update_time_ms;         // system time of last target update to position controller
 static uint32_t vel_update_time_ms;         // system time of last target update to velocity controller
@@ -3479,6 +3479,7 @@ void QuadPlane::guided_update(void)
         guided_takeoff = false;
         // run the velocity controller loop
         vel_control_run();
+        pos_control_run();
     }
 }
 
@@ -3506,25 +3507,43 @@ void QuadPlane::pos_and_vel_control_start()
 
 void QuadPlane::pos_control_run()
 {
+    //set motors to GROUND_IDLE if we are disarmed or completed landing
+    if(!motors->armed() or check_land_complete())
+    {
+        set_desired_spool_state(AP_Motors::DesiredSpoolState::GROUND_IDLE);
+        attitude_control->set_throttle_out(0, true, 0);
+        relax_attitude_control();
+        pos_control->relax_z_controller(0);
+        return;
+    }
     //set motors to full range
     motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+    
 
-    // set velocity to zero and stop rotating if no updates received for 3 seconds
-    uint32_t tnow = millis();
-    if (tnow - pos_update_time_ms > GUIDED_POSVEL_TIMEOUT_MS) 
-    {
-        if (!pos_control->get_vel_desired_cms().is_zero()) 
-        {
-            // set desired velocity to zero
-            Vector3f zero_vec=Vector3f(0.0f, 0.0f, 0.0f);
-            set_desired_velocity_with_zero_accel(zero_vec);
-        }
-        set_desired_yaw_rate(0.0f);
-    }
-    else
-    {
-        set_desired_velocity_with_zero_accel(guided_vel_target_cms);
-    }
+    // // set velocity to zero and stop rotating if no updates received for 3 seconds
+    // uint32_t tnow = millis();
+    // if (tnow - pos_update_time_ms > GUIDED_POSVEL_TIMEOUT_MS) 
+    // {
+    //     if (!pos_control->get_pos_target_cm().is_zero()) 
+    //     {
+    //         // set desired velocity to zero
+    //         Vector3f zero_vec=Vector3f(0.0f, 0.0f, 0.0f);
+    //         set_desired_velocity_with_zero_accel(zero_vec);
+    //     }
+    //     set_desired_yaw_rate(0.0f);
+    // }
+    // else
+    // {
+    set_desired_position_velocity_with_zero_accel(guided_pos_target_cm, guided_vel_target_cms);
+    // }
+    
+    //call the velocity controller update function
+    pos_control->update_xy_controller(); 
+    // call controller update function in z
+    pos_control->update_z_controller();
+
+    //call the attitude controller update function
+    attitude_control->input_thrust_vector_rate_heading(pos_control->get_thrust_vector(),0.0);
 
 }
 
@@ -3580,7 +3599,24 @@ void QuadPlane::set_desired_velocity_with_zero_accel(const Vector3f& vel_des)
     pos_control->input_vel_accel_z(vel_des_l_value.z, 0,false);
 }
 
-//
+//helper function to set desired velocity for position controller
+void QuadPlane::set_desired_position_velocity_with_zero_accel(const Vector3p& pos_des, const Vector3f& vel_des)
+{
+    Vector3f vel_des_l_value = vel_des; 
+    Vector3p pos_des_l_value = pos_des; 
+    if(pos_des_l_value != Vector3p() and (vel_des_l_value == Vector3f() || 
+                                          vel_des_l_value.xy() == Vector2f()))
+    {
+        Vector3f vel_des_default = Vector3f(100.0, 100.0, 50.0); //Hardcoded values
+        vel_des_l_value = vel_des_default;
+    }
+    pos_control->input_pos_vel_accel_xy(pos_des_l_value.xy(), vel_des_l_value.xy(), Vector2f());
+    
+    float pos_z_des = pos_des_l_value.z;
+    pos_control->input_pos_vel_accel_z(pos_z_des, vel_des_l_value.z, 0);
+}
+
+// set velocity setpoint / target velocity for guided mode
 void QuadPlane::set_position_setpoint(const Vector3f& position, bool use_yaw,
     float yaw_cd, bool use_yaw_rate, float yaw_rate_cds, bool relative_yaw)
 {
@@ -3592,7 +3628,9 @@ void QuadPlane::set_position_setpoint(const Vector3f& position, bool use_yaw,
     set_desired_yaw_rate(yaw_rate_cds);
     //set guided_pos_target_cms variable
     pos_update_time_ms = millis();
-    guided_pos_target_cm = position;
+    guided_pos_target_cm.x = position.x;
+    guided_pos_target_cm.y = position.y;
+    guided_pos_target_cm.z = position.z;
     gcs().send_text(MAV_SEVERITY_INFO, "setting target position" );
 
 
