@@ -547,6 +547,7 @@ static Vector3f guided_vel_target_cms;      // velocity target (used by velocity
 static uint32_t pos_update_time_ms;         // system time of last target update to position controller
 static uint32_t vel_update_time_ms;         // system time of last target update to velocity controller
 static const Vector3f default_velocity_guided = Vector3f(120., 120., 70.);
+static bool position_reset_needed = false;  // flag to reset position when velocity controller has timed out
 
 // desired yaw rate from mavlink message
 static float des_yaw_rate_cds;
@@ -3560,6 +3561,14 @@ void QuadPlane::vel_control_run()
     uint32_t tnow = millis();
     if (tnow - vel_update_time_ms > GUIDED_POSVEL_TIMEOUT_MS) 
     {
+        if(position_reset_needed)
+        {
+            Vector3p curr_pos = pos_control->get_pos_target_cm();
+            guided_pos_target_cm.x = curr_pos.x;
+            guided_pos_target_cm.y = curr_pos.y;
+            guided_pos_target_cm.z = curr_pos.z;
+            position_reset_needed = false;
+        }
         if (!pos_control->get_vel_desired_cms().is_zero()) 
         {
             // set desired velocity to zero
@@ -3571,6 +3580,7 @@ void QuadPlane::vel_control_run()
     else
     {
         set_desired_velocity_with_zero_accel(guided_vel_target_cms);
+        pos_control->stop_pos_xy_stabilisation();
     }
 
     //call the velocity controller update function
@@ -3658,6 +3668,8 @@ void QuadPlane::set_velocity_setpoint(const Vector3f& velocity, bool use_yaw,
     float yaw_cd, bool use_yaw_rate, float yaw_rate_cds, bool relative_yaw, 
     bool log_request)
 {
+    // flag used to reset target position as current position once velocity controller has timed out
+    position_reset_needed = true;
     //assuming velocity controller has started.
     if(use_yaw_rate)
     {
