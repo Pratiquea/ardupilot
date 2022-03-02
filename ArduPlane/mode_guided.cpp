@@ -44,6 +44,11 @@
 
 bool ModeGuided::_enter()
 {
+    /*
+    when entering guided mode we set the target as the current
+    location. This matches the behaviour of the copter code
+    */
+    plane.guided_WP_loc = plane.current_loc;
     // If plane is in guided mode and loitering in VTOL configuration
     if(plane.quadplane.guided_mode_enabled())
     {

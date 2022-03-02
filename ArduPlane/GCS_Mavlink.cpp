@@ -1414,7 +1414,7 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             plane.quadplane.set_velocity_setpoint(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
         }
         else if (!pos_ignore && vel_ignore) {
-            plane.quadplane.set_position_setpoint(pos_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
+            plane.quadplane.set_position_setpoint(pos_vector, Vector3f(), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative, false);
         }
 
         break;
