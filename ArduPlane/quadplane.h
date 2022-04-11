@@ -286,6 +286,9 @@ private:
     
     // set desired yaw rate for guided mode attitude controller
     void set_desired_yaw_rate(const float& yaw_rate_cds);
+    // set desired yaw for guided mode attitude controller
+    void set_desired_yaw(const float& yaw_cd);
+
 
     // set desired velocity setpoint/target for controller to track
     void set_velocity_setpoint(const Vector3f& velocity, bool use_yaw = false,
