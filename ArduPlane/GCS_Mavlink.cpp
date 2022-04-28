@@ -1378,7 +1378,7 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             if (packet.coordinate_frame == MAV_FRAME_LOCAL_OFFSET_NED ||
                 packet.coordinate_frame == MAV_FRAME_BODY_NED ||
                 packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED) {
-                pos_vector += plane.quadplane.inertial_nav.get_position();
+                pos_vector += plane.quadplane.inertial_nav.get_position_neu_cm();
             }
         }
 
