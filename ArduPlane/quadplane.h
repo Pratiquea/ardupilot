@@ -124,8 +124,13 @@ public:
     // see if we are flying from vtol point of view
     bool is_flying_vtol(void) const;
 
-    // user initiated takeoff for guided mode
+    // init structure of user initiated takeoff for guided mode
     bool do_user_takeoff(float takeoff_altitude);
+
+    // core of user initiated takeoff for guided mode
+    void do_user_takeoff_start_guided(float takeoff_altitude);
+
+    void do_user_takeoff_start_qguided(float takeoff_altitude);
 
     // return true if the wp_nav controller is being updated
     bool using_wp_nav(void) const;
@@ -261,6 +266,8 @@ private:
     void setup_default_channels(uint8_t num_motors);
 
     void guided_start(void);
+    void qguided_start(float takeoff_alt);
+
     void guided_update(void);
 
     // set the vtol_loiter variable under auto_state struct of plane to true
@@ -642,6 +649,10 @@ private:
      */
     void poscontrol_init_approach(void);
 
+    /*
+      setup for takeoff
+     */
+    void poscontrol_init_position2(void);
     /*
       calculate our closing velocity vector on the landing
       point. Takes account of the landing point having a velocity

@@ -2145,31 +2145,44 @@ void QuadPlane::poscontrol_init_approach(void)
         // go straight to QPOS_POSITION1
         poscontrol.set_state(QPOS_POSITION1);
         gcs().send_text(MAV_SEVERITY_INFO,"VTOL Position1 d=%.1f", dist);
-    } else if (poscontrol.get_state() != QPOS_APPROACH || poscontrol.get_state() != QPOS_POSITION2) {
+    } else if (poscontrol.get_state() != QPOS_APPROACH) {
+        // check if we are close to the destination. We don't want to
+        // do a full approach when very close
+        if (dist < transition_threshold()) {
+            if (tailsitter.enabled() || motors->get_desired_spool_state() == AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED) {
+                gcs().send_text(MAV_SEVERITY_INFO,"VTOL Position1 d=%.1f", dist);
+                poscontrol.set_state(QPOS_POSITION1);
+                transition->set_last_fw_pitch();
+            } else {
+                gcs().send_text(MAV_SEVERITY_INFO,"VTOL airbrake v=%.1f d=%.0f sd=%.0f h=%.1f",
+                                plane.ahrs.groundspeed(),
+                                dist,
+                                stopping_distance(),
+                                plane.relative_ground_altitude(plane.g.rangefinder_landing));
+                poscontrol.set_state(QPOS_AIRBRAKE);
+            }
+        } else {
+            gcs().send_text(MAV_SEVERITY_INFO,"VTOL approach d=%.1f", dist);
+            poscontrol.set_state(QPOS_APPROACH);
+        }
+        poscontrol.thrust_loss_start_ms = 0;
+    }
+    poscontrol.pilot_correction_done = false;
+    poscontrol.xy_correction.zero();
+}
+
+
+/*
+  initialise QPOS_POSITION2
+ */
+void QuadPlane::poscontrol_init_position2(void)
+{
+    if (poscontrol.get_state() != QPOS_POSITION2) {
         // Skipping logic that corresponds to fixed wing 
         // operation and directly go in to QPOS_POSITION2 corresponding
         // to VTOL mode operations since we don't want fixed winged flight
         // behaviour during guided mode for now. 
-        /* // check if we are close to the destination. We don't want to
-           // do a full approach when very close
-           if (dist < transition_threshold()) {
-               if (tailsitter.enabled() || motors->get_desired_spool_state() == AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED) {
-                   gcs().send_text(MAV_SEVERITY_INFO,"VTOL Position1 d=%.1f", dist);
-                   poscontrol.set_state(QPOS_POSITION1);
-                   transition->set_last_fw_pitch();
-               } else {
-                   gcs().send_text(MAV_SEVERITY_INFO,"VTOL airbrake v=%.1f d=%.0f sd=%.0f h=%.1f",
-                                   plane.ahrs.groundspeed(),
-                                   dist,
-                                   stopping_distance(),
-                                   plane.relative_ground_altitude(plane.g.rangefinder_landing));
-                   poscontrol.set_state(QPOS_AIRBRAKE);
-               }
-           } else {
-               gcs().send_text(MAV_SEVERITY_INFO,"VTOL approach d=%.1f", dist);
-               poscontrol.set_state(QPOS_APPROACH);
-           } */
-        gcs().send_text(MAV_SEVERITY_INFO,"VTOL approach d=%.1f", dist);
+        gcs().send_text(MAV_SEVERITY_INFO,"VTOL approach d = None; qguided takeoff");
         poscontrol.set_state(QPOS_POSITION2);
         poscontrol.thrust_loss_start_ms = 0;
     }
@@ -2236,6 +2249,7 @@ void QuadPlane::PosControlState::set_state(enum position_control_state s)
  */
 void QuadPlane::vtol_position_controller(void)
 {
+    // gcs().send_text(MAV_SEVERITY_INFO,"vtol_position_controller called");
     if (!setup()) {
         return;
     }
@@ -3452,6 +3466,33 @@ void QuadPlane::guided_start(void)
     poscontrol_init_approach();
 }
 
+
+/*
+  start qguided mode control
+ */
+void QuadPlane::qguided_start(float takeoff_alt)
+{
+    guided_takeoff = false;
+    // if (!in_vtol_land_approach() || poscontrol.get_state() > QPOS_APPROACH) {
+    //     set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+    // }
+    // poscontrol.xy_correction.zero();
+    // Vector2f diff2d = poscontrol.xy_correction;
+    // poscontrol.target_cm.x = diff2d.x * 100;
+    // poscontrol.target_cm.y = diff2d.x * 100;
+    poscontrol.target_cm.x = 0.0;
+    poscontrol.target_cm.y = 0.0;
+    poscontrol.target_cm.z = takeoff_alt*100.0;
+
+    // set vertical speed and acceleration limits
+    pos_control->set_max_speed_accel_z(-get_pilot_velocity_z_max_dn(), pilot_velocity_z_max_up, pilot_accel_z);
+    pos_control->set_correction_speed_accel_z(-get_pilot_velocity_z_max_dn(), pilot_velocity_z_max_up, pilot_accel_z);
+
+    // disable slow descent 
+    poscontrol.slow_descent = 0.0 > takeoff_alt;
+    poscontrol_init_position2();
+}
+
 void QuadPlane::set_vtol_loiter(void)
 {
     plane.auto_state.vtol_loiter = true;
@@ -3782,6 +3823,31 @@ bool QuadPlane::do_user_takeoff(float takeoff_altitude)
         gcs().send_text(MAV_SEVERITY_INFO, "Already flying - no takeoff");
         return false;
     }
+    
+    do_user_takeoff_start_guided(takeoff_altitude);
+
+    gcs().send_text(MAV_SEVERITY_INFO, "User Takeoff fx completed");
+    return true;
+}
+
+void QuadPlane::do_user_takeoff_start_qguided(float takeoff_altitude)
+{
+    plane.auto_state.vtol_loiter = true;
+    plane.prev_WP_loc = plane.current_loc;
+    plane.next_WP_loc = plane.current_loc;
+    plane.next_WP_loc.alt += takeoff_altitude*100;
+    guided_pos_target_cm.z += takeoff_altitude*100;
+    set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+    qguided_start(takeoff_altitude);
+    guided_takeoff = true;
+    if ((options & OPTION_DISABLE_GROUND_EFFECT_COMP) == 0) {
+        ahrs.set_takeoff_expected(true);
+    }
+}
+
+
+void QuadPlane::do_user_takeoff_start_guided(float takeoff_altitude)
+{
     plane.auto_state.vtol_loiter = true;
     plane.prev_WP_loc = plane.current_loc;
     plane.next_WP_loc = plane.current_loc;
@@ -3793,8 +3859,6 @@ bool QuadPlane::do_user_takeoff(float takeoff_altitude)
     if ((options & OPTION_DISABLE_GROUND_EFFECT_COMP) == 0) {
         ahrs.set_takeoff_expected(true);
     }
-    gcs().send_text(MAV_SEVERITY_INFO, "User Takeoff fx completed");
-    return true;
 }
 
 // return true if the wp_nav controller is being updated
