@@ -94,6 +94,20 @@ void Gazebo::recv_fdm(const struct sitl_input &input)
         }
     }
 
+
+    // check we have all the required fields
+    uint16_t required_bitmask
+        = fdm_packet::TIMESTAMP
+        | fdm_packet::GYRO
+        | fdm_packet::ACCEL_BODY
+        | fdm_packet::POSITION
+        | fdm_packet::QUAT_ATT
+        | fdm_packet::VELOCITY;
+    if (pkt.bitmask == 0 || (pkt.bitmask & required_bitmask) == 0) {
+        printf("Did not receive all mandatory fields from Gazebo\n");
+    }
+
+
     const double deltat = pkt.timestamp - last_timestamp;  // in seconds
     if (deltat < 0) {  // don't use old packet
         time_now_us += 1;
@@ -124,6 +138,22 @@ void Gazebo::recv_fdm(const struct sitl_input &input)
                         pkt.position_xyz[2]);
     position.xy() += origin.get_distance_NE_double(home);
 
+
+    // update apparent wind direction
+    if (pkt.bitmask & fdm_packet::WIND_DIR) {
+        wind_vane_apparent.direction = pkt.wind_apparent.direction;
+    }
+
+    // update apparent wind speed
+    if (pkt.bitmask & fdm_packet::WIND_SPD) {
+        wind_vane_apparent.speed = pkt.wind_apparent.speed;
+    }
+
+    if (pkt.bitmask & (fdm_packet::WIND_DIR|fdm_packet::WIND_SPD)) {
+        airspeed = pkt.airspeed;
+        airspeed_pitot = airspeed;
+    }
+    
     // auto-adjust to simulation frame rate
     time_now_us += static_cast<uint64_t>(deltat * 1.0e6);
 
