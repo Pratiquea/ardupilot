@@ -3,6 +3,7 @@
 #if HAL_QUADPLANE_ENABLED
 
 #include "AC_AttitudeControl/AC_AttitudeControl_TS.h"
+#include "quadplane.h"
 
 const AP_Param::GroupInfo QuadPlane::var_info[] = {
 
@@ -543,7 +544,7 @@ const AP_Param::ConversionInfo q_conversion_table[] = {
 // #define YAW_SP_TIMEOUT_MS           500     // timeout for settting desired yaw
 #define POS_SP_TIMEOUT_MS           1000     // timeout for settting desired yaw
 // #define GUIDED_ATTITUDE_TIMEOUT_MS  1000 // guided mode's attitude controller times out after 1 second with no new updates
-static uint32_t log_time;
+// static uint32_t log_time;
 static Vector3p guided_pos_target_cm;       // position target (used by posvel controller only)
 static Vector3f guided_vel_target_cms;      // velocity target (used by velocity controller and possibly pos controller)
 static uint32_t pos_update_time_ms;         // system time of last target update to position controller
@@ -557,6 +558,17 @@ static bool vel_ctrl_active = true;            // flag to determine which contro
 // desired yaw rate from mavlink message
 static float des_yaw_rate_cds;
 static float des_yaw_cd;
+
+struct {
+    uint32_t update_time_ms;
+    Quaternion attitude_quat;
+    Vector3f ang_vel;
+    float yaw_rate_cds;
+    float climb_rate_cms;   // climb rate in cms.  Used if use_thrust is false
+    float thrust;           // thrust from -1 to 1.  Used if use_thrust is true
+    bool use_yaw_rate;
+    bool use_thrust;
+} static guided_angle_state;
 
 QuadPlane::QuadPlane(AP_AHRS &_ahrs) :
     ahrs(_ahrs)
@@ -3250,6 +3262,31 @@ bool QuadPlane::verify_vtol_land(void)
     return false;
 }
 
+// Write a Guided mode attitude target
+// roll, pitch and yaw are in radians
+// ang_vel: angular velocity, [roll rate, pitch_rate, yaw_rate] in radians/sec
+// thrust is between 0 to 1
+// climb_rate is in (m/s)
+void QuadPlane::Log_Write_Guided_Attitude_Target(float roll, float pitch, 
+                                                 float yaw, 
+                                                 const Vector3f &ang_vel,
+                                                 float thrust, float climb_rate)
+{
+    const log_Guided_Attitude_Target pkt {
+        LOG_PACKET_HEADER_INIT(LOG_QGAT_MSG),
+        time_us         : AP_HAL::micros64(),
+        roll            : degrees(roll),       // rad to deg
+        pitch           : degrees(pitch),      // rad to deg
+        yaw             : degrees(yaw),        // rad to deg
+        roll_rate       : degrees(ang_vel.x),  // rad/s to deg/s
+        pitch_rate      : degrees(ang_vel.y),  // rad/s to deg/s
+        yaw_rate        : degrees(ang_vel.z),  // rad/s to deg/s
+        thrust          : thrust,
+        climb_rate      : climb_rate,
+    };
+    plane.logger.WriteBlock(&pkt, sizeof(pkt));
+}
+
 // Write a control tuning packet
 void QuadPlane::Log_Write_QControl_Tuning()
 {
@@ -3537,15 +3574,46 @@ void QuadPlane::guided_update(void)
             pos_control_run();
         }
 
-        uint32_t tnow = millis();
-        if(tnow - log_time > 3000)
-        {
-            log_time = tnow;
-            gcs().send_text(MAV_SEVERITY_INFO, "curr target pos x:%0.2f, y:%0.2f, z:%0.2f",guided_pos_target_cm.x/100.0, guided_pos_target_cm.y/100.0, guided_pos_target_cm.z/100.0);
-            gcs().send_text(MAV_SEVERITY_INFO, "curr target vel x:%0.2f, y:%0.2f, z:%0.2f",guided_vel_target_cms.x/100.0, guided_vel_target_cms.y/100.0, guided_vel_target_cms.z/100.0);
-        }
+        // uint32_t tnow = millis();
+        // if(tnow - log_time > 3000)
+        // {
+        //     log_time = tnow;
+        //     gcs().send_text(MAV_SEVERITY_INFO, "curr target pos x:%0.2f, y:%0.2f, z:%0.2f",guided_pos_target_cm.x/100.0, guided_pos_target_cm.y/100.0, guided_pos_target_cm.z/100.0);
+        //     gcs().send_text(MAV_SEVERITY_INFO, "curr target vel x:%0.2f, y:%0.2f, z:%0.2f",guided_vel_target_cms.x/100.0, guided_vel_target_cms.y/100.0, guided_vel_target_cms.z/100.0);
+        // }
 
     }
+}
+
+/*
+    Initialize guided mode's angle controller
+*/
+void QuadPlane::angle_control_start(){
+    //TODO: set guided mode to angle control sub-mode
+    // guided_mode = SubMode::Angle; //something like this
+
+    // set vertical speed and acceleration limits
+    pos_control->set_max_speed_accel_z(wp_nav->get_default_speed_down(),
+                                       wp_nav->get_default_speed_up(),
+                                       wp_nav->get_accel_z());
+    pos_control->set_correction_speed_accel_z(wp_nav->get_default_speed_down(),
+                                              wp_nav->get_default_speed_up(),
+                                              wp_nav->get_accel_z());
+    
+    // initialise the vertical position controller
+    if(!pos_control->is_active_z()){
+        pos_control->init_z_controller();
+    }
+
+    // initialise targets in guided_angle_state
+    guided_angle_state.update_time_ms = millis();
+    guided_angle_state.attitude_quat.initialise();
+    guided_angle_state.ang_vel.zero();
+    guided_angle_state.climb_rate_cms = 0.0f;
+    guided_angle_state.yaw_rate_cds = 0.0f;
+    guided_angle_state.use_yaw_rate = false;
+
+    //TODO: check if yaw intialization is required here
 }
 
 /*
@@ -3563,6 +3631,90 @@ void QuadPlane::pos_and_vel_control_start()
 
     pos_control->init_z_controller();
     pos_control->init_xy_controller();
+}
+
+
+/*
+    guided_angle_control_run - runs the angle controller in guided mode (VTOL configuration)
+    called from update method in guided mode
+*/
+
+void QuadPlane::angle_control_run()
+{
+    float climb_rate_cms = 0.0f;
+    if(!guided_angle_state.use_thrust){
+        //constain climb rate
+        climb_rate_cms = constrain_float(guided_angle_state.climb_rate_cms,-wp_nav->get_default_speed_down(),wp_nav->get_default_speed_up());
+
+        // get avoidance adjusted climb rate so that the vehicle doesn't break
+        // the vertical fence
+        // climb_rate_cms = get_avoidance_adjusted_climbrate(climb_rate_cms);
+    }
+
+    // check for timeout; set lean angles and climb rate to zero if we haven't 
+    // received an update for 3 seconds and engage z controller
+    uint32_t tnow = millis();
+    if (tnow - guided_angle_state.update_time_ms > POS_SP_TIMEOUT_MS ) {
+        guided_angle_state.attitude_quat.initialise();
+        guided_angle_state.ang_vel.zero();
+        climb_rate_cms = 0.0f;
+        if (guided_angle_state.use_thrust) {
+            // initialise vertical velocity controller
+            pos_control->init_z_controller();
+            guided_angle_state.use_thrust = false;
+        }
+    }
+    
+    // TODO: write arming part of code here if vehicle doesn't arm during testing
+    // it is assumed that the vehicle is armed and motors are set to full range
+    const bool positive_thrust_or_climbrate = is_positive(guided_angle_state.use_thrust ? guided_angle_state.thrust : climb_rate_cms);
+
+    //if not armed, set throttle to zero and exit from loop
+    if(!motors->armed() || (check_land_complete() && !positive_thrust_or_climbrate) )
+    {
+        return;
+    }
+
+    // if vehicle has landed with positive desired climb rate, takeoff
+    if(check_land_complete() &&(guided_angle_state.climb_rate_cms > 0.0f)){
+        // relax attitude controller
+        attitude_control->input_euler_angle_roll_pitch_euler_rate_yaw(0.0f, 0.0f, 0.0f);
+        // set throttle to zero and don't apply boost compensation for roll and pitch
+        attitude_control->set_throttle_out(0.0f, false, 0);
+        // set motors to full range 
+        motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+        if (motors->get_spool_state() == AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
+            // allows modes to tell throttle controller we are taking off
+            // so I terms can be cleared
+            // TODO: have a variable denoting land_complete and set it to false
+            pos_control->init_z_controller();
+        }
+        return;
+    }
+
+    // set motors to full range
+    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+
+    // call attitude controller
+    // if no quaternion is provided, use velocities instead
+    if(guided_angle_state.attitude_quat.is_zero()){
+        attitude_control->input_rate_bf_roll_pitch_yaw(ToDeg(guided_angle_state.ang_vel.x)*100.0f, ToDeg(guided_angle_state.ang_vel.y)*100.0f, ToDeg(guided_angle_state.ang_vel.z)*100.0f);
+    }
+    // if quaternion is provided, use it with the velocities
+    else{
+        attitude_control->input_quaternion(guided_angle_state.attitude_quat, guided_angle_state.ang_vel);
+    }
+
+    // If thrust is provided, set throttle to that value
+    if(guided_angle_state.use_thrust){
+        attitude_control->set_throttle_out(guided_angle_state.thrust, true, 0);
+    }
+    // If thrust isn't provided, use position controller to maintin altitude
+    else{
+        pos_control->set_pos_target_z_from_climb_rate_cm(climb_rate_cms);
+        pos_control->update_z_controller();
+    }
+    
 }
 
 /*
@@ -3677,6 +3829,43 @@ void QuadPlane::set_desired_position_velocity_with_zero_accel(const Vector3p& po
     
     float pos_z_des = pos_des_l_value.z;
     pos_control->input_pos_vel_accel_z(pos_z_des, vel_des_l_value.z, 0);
+}
+
+// set attitude and thrust/climbrate setpoint for guided mode
+// attitude_quat: IF zero: ang_vel (angular velocity) must be provided even if all zeroes
+//                IF non-zero: attitude_control is performed using both the attitude quaternion and angular velocity
+// ang_vel: angular velocity (rad/s)
+// climb_rate_cms_or_thrust: represents either the climb_rate (cm/s) or thrust scaled from [0, 1], unitless
+// use_thrust: IF true: climb_rate_cms_or_thrust represents thrust
+//             IF false: climb_rate_cms_or_thrust represents climb_rate (cm/s)
+void QuadPlane::set_attitude_thrust_setpoint(const Quaternion &attitude_quat, const Vector3f& ang_vel, float climb_rate_cms_or_thrust, bool use_thrust)
+{
+    //TODO: check if we are in angle control mode
+    // if(guided_mode == SubMode::Angle){
+    //     angle_control_start();
+    // }
+    gcs().send_text(MAV_SEVERITY_INFO, "quadplane Quat w:%0.2f, x:%0.2f, y:%0.2f, z:%0.2f",attitude_quat.q1,attitude_quat.q2,attitude_quat.q3,attitude_quat.q4);
+    guided_angle_state.attitude_quat = attitude_quat;
+    guided_angle_state.ang_vel = ang_vel;
+    guided_angle_state.use_thrust = use_thrust;
+
+    if(use_thrust){
+        guided_angle_state.thrust = climb_rate_cms_or_thrust;
+        guided_angle_state.climb_rate_cms = 0.0f;
+    } else{
+        guided_angle_state.thrust = 0.0f;
+        guided_angle_state.climb_rate_cms = climb_rate_cms_or_thrust;
+    }
+
+    guided_angle_state.update_time_ms = millis();
+
+    // convert quat to euler angles
+    float roll_rad, pitch_rad, yaw_rad;
+    attitude_quat.to_euler(roll_rad, pitch_rad, yaw_rad);
+
+    // log the attitude target
+    Log_Write_Guided_Attitude_Target(roll_rad, pitch_rad, yaw_rad, ang_vel, guided_angle_state.thrust, guided_angle_state.climb_rate_cms * 0.01);
+
 }
 
 // set velocity setpoint / target velocity for guided mode

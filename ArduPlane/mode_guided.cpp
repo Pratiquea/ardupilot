@@ -81,7 +81,7 @@ void ModeGuided::update()
     }
 }
 
-// removing navigate mehtod since we don't need waypoint navigation for
+// removing navigate method since we don't need waypoint navigation for
 // auto docking.
 // void ModeGuided::navigate()
 // {

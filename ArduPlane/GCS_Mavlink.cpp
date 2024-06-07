@@ -1254,13 +1254,13 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         // in e.g., RTL, CICLE. Specifying a single mode for companion
         // computer control is more safe (even more so when using
         // FENCE_ACTION = 4 for geofence failures).
+        // gcs().send_text(MAV_SEVERITY_INFO, "set attitude target msg received");
         if (plane.control_mode != &plane.mode_guided) { // don't screw up failsafes
             break; 
         }
 
         mavlink_set_attitude_target_t att_target;
         mavlink_msg_set_attitude_target_decode(&msg, &att_target);
-
         // Mappings: If any of these bits are set, the corresponding input should be ignored.
         // NOTE, when parsing the bits we invert them for easier interpretation but transport has them inverted
         // bit 1: body roll rate
@@ -1272,8 +1272,16 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         // bit 7: throttle
         // bit 8: attitude
 
-        // if not setting all Quaternion values, use _rate flags to indicate which fields.
+        // redundant flags since parser for fixed wing checks bits individually
+        // but this is more clear to use. Using these flags to parse for quadplane
+        // mode.
+        const bool roll_rate_ignore   = att_target.type_mask & ATTITUDE_TARGET_TYPEMASK_BODY_ROLL_RATE_IGNORE;
+        const bool pitch_rate_ignore  = att_target.type_mask & ATTITUDE_TARGET_TYPEMASK_BODY_PITCH_RATE_IGNORE;
+        const bool yaw_rate_ignore    = att_target.type_mask & ATTITUDE_TARGET_TYPEMASK_BODY_YAW_RATE_IGNORE;
+        const bool throttle_ignore    = att_target.type_mask & ATTITUDE_TARGET_TYPEMASK_THROTTLE_IGNORE;
+        const bool attitude_ignore    = att_target.type_mask & ATTITUDE_TARGET_TYPEMASK_ATTITUDE_IGNORE;
 
+        // if not setting all Quaternion values, use _rate flags to indicate which fields.
         // Extract the Euler roll angle from the Quaternion.
         Quaternion q(att_target.q[0], att_target.q[1],
                 att_target.q[2], att_target.q[3]);
@@ -1313,6 +1321,63 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             // Update timer for external throttle
             plane.guided_state.last_forced_throttle_ms = now;
         }
+
+        // parser for quadplane quided mode
+        // TODO: check if vehicle is in quadplane mode or VTOL configuration
+        // if(plane.control_mode != &plane.mode_guided){
+        //     break;
+        // }
+
+        if(throttle_ignore){
+            break;
+        }
+
+        Quaternion attitude_quat;
+        if (attitude_ignore) {
+            attitude_quat.zero();
+        } else {
+            attitude_quat = q;
+            // Do not accept the attitude_quaternion
+            // if its magnitude is not close to unit length +/- 1E-3
+            // this limit is somewhat greater than sqrt(FLT_EPSL)
+            if (!attitude_quat.is_unit_length()) {
+                // The attitude quaternion is ill-defined
+                break;
+            }
+        }
+        // Currently supporting only thrust use instead of climb rate for quadplane
+        const bool use_thrust = true;
+        float climb_rate_or_thrust;
+        if (use_thrust) {
+            // interpret thrust as thrust
+            climb_rate_or_thrust = constrain_float(att_target.thrust, -1.0f, 1.0f);
+        } else {
+            // convert thrust to climb rate
+            att_target.thrust = constrain_float(att_target.thrust, 0.0f, 1.0f);
+            if (is_equal(att_target.thrust, 0.5f)) {
+                climb_rate_or_thrust = 0.0f;
+            } else if (att_target.thrust > 0.5f) {
+                // climb at up to WPNAV_SPEED_UP
+                climb_rate_or_thrust = (att_target.thrust - 0.5f) * 2.0f * plane.quadplane.wp_nav->get_default_speed_up();
+            } else {
+                // descend at up to WPNAV_SPEED_DN
+                climb_rate_or_thrust = (0.5f - att_target.thrust) * 2.0f * -plane.quadplane.wp_nav->get_default_speed_down();
+            }
+        }
+
+        Vector3f ang_vel;
+        if (!roll_rate_ignore) {
+            ang_vel.x = att_target.body_roll_rate;
+        }
+        if (!pitch_rate_ignore) {
+            ang_vel.y = att_target.body_pitch_rate;
+        }
+        if (!yaw_rate_ignore) {
+            ang_vel.z = att_target.body_yaw_rate;
+        }
+
+        plane.quadplane.set_attitude_thrust_setpoint(attitude_quat, ang_vel,
+                climb_rate_or_thrust, use_thrust);
 
         break;
     }

@@ -143,6 +143,20 @@ public:
 
     uint16_t get_pilot_velocity_z_max_dn() const;
     
+    // guided attitude target logging
+    struct PACKED log_Guided_Attitude_Target {
+        LOG_PACKET_HEADER;
+        uint64_t time_us;
+        float roll;
+        float pitch;
+        float yaw;
+        float roll_rate;
+        float pitch_rate;
+        float yaw_rate;
+        float thrust;
+        float climb_rate;
+    };
+
     struct PACKED log_QControl_Tuning {
         LOG_PACKET_HEADER;
         uint64_t time_us;
@@ -258,6 +272,9 @@ private:
 
     bool should_relax(void);
     void motors_output(bool run_rate_controller = true);
+    void Log_Write_Guided_Attitude_Target(float roll, float pitch, float yaw,
+                                          const Vector3f &ang_vel, float thrust,
+                                          float climb_rate);
     void Log_Write_QControl_Tuning();
     void log_QPOS(void);
     float landing_descent_rate_cms(float height_above_ground);
@@ -269,11 +286,16 @@ private:
     void qguided_start(float takeoff_alt);
 
     void guided_update(void);
+    
+    // initialise attitude controller for guided mode
+    void angle_control_start();
 
     // set the vtol_loiter variable under auto_state struct of plane to true
     // i.e. enable VTOL behaviour
     void set_vtol_loiter(void);
 
+    // attitude controller run/update for guided mode
+    void angle_control_run();
 
     // initialize velocity controller for guided mode
     void pos_and_vel_control_start();
@@ -284,6 +306,12 @@ private:
     // helper function for setting desired position and velocity 
     void set_desired_position_velocity_with_zero_accel(const Vector3p& pos_des,
                                 const Vector3f& vel_des);
+
+    // helper function for setting desired attitude and thrust
+    void set_attitude_thrust_setpoint(const Quaternion &attitude_quat, 
+                                      const Vector3f &ang_vel, 
+                                      float climb_rate_cms_or_thrust, 
+                                      bool use_thrust);
 
     // velocity controller run/update for guided mode
     void vel_control_run();
