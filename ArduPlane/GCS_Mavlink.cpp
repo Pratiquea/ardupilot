@@ -1323,10 +1323,10 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         }
 
         // parser for quadplane quided mode
-        // TODO: check if vehicle is in quadplane mode or VTOL configuration
-        // if(plane.control_mode != &plane.mode_guided){
-        //     break;
-        // }
+
+        if (!plane.quadplane.in_vtol_mode()){
+            break;
+        }
 
         if(throttle_ignore){
             break;

@@ -187,6 +187,30 @@ public:
     // called when we change mode (for any mode, not just Q modes)
     void mode_enter(void);
 
+    // puase guided mode
+    bool pause_qguided(void);
+
+    // resume guided mode
+    bool resume_qguided(void);
+
+    // convienence function to set the desired velocity targets to zero
+    void set_vel_guided_target_zero();
+
+    enum class SubMode {
+        // TakeOff=0,
+        Pos=1,
+        Vel=2,
+        Angle=3,
+    };
+
+    SubMode get_submode() const { return qguided_sub_mode;}
+
+    template <typename Enumeration>
+    auto as_integer(Enumeration const value) -> typename std::underlying_type<Enumeration>::type
+    {
+        return static_cast<typename std::underlying_type<Enumeration>::type>(value);
+    }   
+
 private:
     AP_AHRS &ahrs;
     AP_Vehicle::MultiCopter aparm;
@@ -287,8 +311,14 @@ private:
 
     void guided_update(void);
     
-    // initialise attitude controller for guided mode
+    // initialise attitude controller for guided mode for quadplane configuration
     void angle_control_start();
+    
+    // initialise position controller for guided mode for quadplane configuration
+    void pos_control_start();
+
+    // initialise velocity controller for guided mode for quadplane configuration
+    void vel_control_start();
 
     // set the vtol_loiter variable under auto_state struct of plane to true
     // i.e. enable VTOL behaviour
@@ -299,6 +329,10 @@ private:
 
     // initialize velocity controller for guided mode
     void pos_and_vel_control_start();
+
+    // runs guided mode pause controller for quadplane configuration
+    // essentially holds the vehicle in hover state
+    void pause_control_run();
 
     // position controller run/update for guided mode
     void pos_control_run();
@@ -421,6 +455,16 @@ private:
 
     // control if a VTOL GUIDED will be used
     AP_Int8 guided_mode;
+
+    // controls which controller is run as a sumbode of guided mode in quadplane
+    // or VTOL configuration
+    // SubMode qguided_sub_mode = SubMode::TakeOff;
+    SubMode qguided_sub_mode = SubMode::Vel;
+
+    // controls default state for guided submode. If a command is not received 
+    // until timeout, the default state is used to maintain the vehicle in hover 
+    // state (holding position)
+    bool _paused;
 
     // control ESC throttle calibration
     AP_Int8 esc_calibration;
