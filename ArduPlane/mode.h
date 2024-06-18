@@ -212,7 +212,7 @@ public:
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
-    void navigate() override;
+    // void navigate() override;
 
     virtual bool is_guided_mode() const override { return true; }
 
