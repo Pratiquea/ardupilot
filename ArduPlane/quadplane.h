@@ -290,9 +290,9 @@ private:
 
     bool should_relax(void);
     void motors_output(bool run_rate_controller = true);
-    void Log_Write_Guided_Attitude_Target(float roll, float pitch, float yaw,
-                                          const Vector3f &ang_vel, float thrust,
-                                          float climb_rate);
+    // void Log_Write_Guided_Attitude_Target(float roll, float pitch, float yaw,
+                                        //   const Vector3f &ang_vel, float thrust,
+                                        //   float climb_rate);
     void Log_Write_QControl_Tuning();
     void log_QPOS(void);
     float landing_descent_rate_cms(float height_above_ground);

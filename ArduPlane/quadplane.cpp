@@ -3352,30 +3352,30 @@ bool QuadPlane::verify_vtol_land(void)
     return false;
 }
 
-// Write a Guided mode attitude target
-// roll, pitch and yaw are in radians
-// ang_vel: angular velocity, [roll rate, pitch_rate, yaw_rate] in radians/sec
-// thrust is between 0 to 1
-// climb_rate is in (m/s)
-void QuadPlane::Log_Write_Guided_Attitude_Target(float roll, float pitch, 
-                                                 float yaw, 
-                                                 const Vector3f &ang_vel,
-                                                 float thrust, float climb_rate)
-{
-    const log_Guided_Attitude_Target pkt {
-        LOG_PACKET_HEADER_INIT(LOG_QGAT_MSG),
-        time_us         : AP_HAL::micros64(),
-        roll            : degrees(roll),       // rad to deg
-        pitch           : degrees(pitch),      // rad to deg
-        yaw             : degrees(yaw),        // rad to deg
-        roll_rate       : degrees(ang_vel.x),  // rad/s to deg/s
-        pitch_rate      : degrees(ang_vel.y),  // rad/s to deg/s
-        yaw_rate        : degrees(ang_vel.z),  // rad/s to deg/s
-        thrust          : thrust,
-        climb_rate      : climb_rate,
-    };
-    plane.logger.WriteBlock(&pkt, sizeof(pkt));
-}
+// // Write a Guided mode attitude target
+// // roll, pitch and yaw are in radians
+// // ang_vel: angular velocity, [roll rate, pitch_rate, yaw_rate] in radians/sec
+// // thrust is between 0 to 1
+// // climb_rate is in (m/s)
+// void QuadPlane::Log_Write_Guided_Attitude_Target(float roll, float pitch, 
+//                                                  float yaw, 
+//                                                  const Vector3f &ang_vel,
+//                                                  float thrust, float climb_rate)
+// {
+//     const log_Guided_Attitude_Target pkt {
+//         LOG_PACKET_HEADER_INIT(LOG_QGAT_MSG),
+//         time_us         : AP_HAL::micros64(),
+//         roll            : degrees(roll),       // rad to deg
+//         pitch           : degrees(pitch),      // rad to deg
+//         yaw             : degrees(yaw),        // rad to deg
+//         roll_rate       : degrees(ang_vel.x),  // rad/s to deg/s
+//         pitch_rate      : degrees(ang_vel.y),  // rad/s to deg/s
+//         yaw_rate        : degrees(ang_vel.z),  // rad/s to deg/s
+//         thrust          : thrust,
+//         climb_rate      : climb_rate,
+//     };
+//     plane.logger.WriteBlock(&pkt, sizeof(pkt));
+// }
 
 // Write a control tuning packet
 void QuadPlane::Log_Write_QControl_Tuning()
@@ -3976,7 +3976,7 @@ void QuadPlane::set_attitude_thrust_setpoint(const Quaternion &attitude_quat, co
     attitude_quat.to_euler(roll_rad, pitch_rad, yaw_rad);
 
     // log the attitude target
-    Log_Write_Guided_Attitude_Target(roll_rad, pitch_rad, yaw_rad, ang_vel, guided_angle_state.thrust, guided_angle_state.climb_rate_cms * 0.01);
+    // Log_Write_Guided_Attitude_Target(roll_rad, pitch_rad, yaw_rad, ang_vel, guided_angle_state.thrust, guided_angle_state.climb_rate_cms * 0.01);
 
 }
 
