@@ -1193,7 +1193,7 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         // computer control is more safe (even more so when using
         // FENCE_ACTION = 4 for geofence failures).
 
-        gcs().send_text(MAV_SEVERITY_INFO, "setpoint attitude invoked");
+        // gcs().send_text(MAV_SEVERITY_INFO, "setpoint attitude invoked");
         if (plane.control_mode != &plane.mode_guided) { // don't screw up failsafes
             break; 
         }
@@ -1201,7 +1201,7 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         mavlink_set_attitude_target_t att_target;
         mavlink_msg_set_attitude_target_decode(&msg, &att_target);
 
-        gcs().send_text(MAV_SEVERITY_INFO, "gcsmavlink ang_vel: x:%0.2f, y:%0.2f, z:%0.2f",att_target.body_roll_rate, att_target.body_pitch_rate, att_target.body_yaw_rate);
+        // gcs().send_text(MAV_SEVERITY_INFO, "gcsmavlink ang_vel: x:%0.2f, y:%0.2f, z:%0.2f",att_target.body_roll_rate, att_target.body_pitch_rate, att_target.body_yaw_rate);
         // Mappings: If any of these bits are set, the corresponding input should be ignored.
         // NOTE, when parsing the bits we invert them for easier interpretation but transport has them inverted
         // bit 1: body roll rate

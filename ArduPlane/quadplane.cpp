@@ -3953,8 +3953,8 @@ void QuadPlane::set_attitude_thrust_setpoint(const Quaternion &attitude_quat, co
     if(qguided_sub_mode != SubMode::Angle){
         angle_control_start();
     }
-    gcs().send_text(MAV_SEVERITY_INFO, "quadplane Quat w:%0.2f, x:%0.2f, y:%0.2f, z:%0.2f",attitude_quat.q1,attitude_quat.q2,attitude_quat.q3,attitude_quat.q4);
-    gcs().send_text(MAV_SEVERITY_INFO, "quadplane ang_vel: x:%0.2f, y:%0.2f, z:%0.2f",ang_vel.x,ang_vel.y,ang_vel.z);
+    // gcs().send_text(MAV_SEVERITY_INFO, "quadplane Quat w:%0.2f, x:%0.2f, y:%0.2f, z:%0.2f",attitude_quat.q1,attitude_quat.q2,attitude_quat.q3,attitude_quat.q4);
+    // gcs().send_text(MAV_SEVERITY_INFO, "quadplane ang_vel: x:%0.2f, y:%0.2f, z:%0.2f",ang_vel.x,ang_vel.y,ang_vel.z);
     // attitude_update_time_ms = millis();
 
     guided_angle_state.attitude_quat = attitude_quat;
