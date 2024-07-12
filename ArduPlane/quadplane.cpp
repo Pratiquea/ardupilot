@@ -3802,7 +3802,9 @@ void QuadPlane::angle_control_run()
 
     // If thrust is provided, set throttle to that value
     if(guided_angle_state.use_thrust){
-        attitude_control->set_throttle_out(guided_angle_state.thrust, true, 0);
+        // setting boost argument to false because we don't need the internal controller to compensate for 
+        // extra thrust depending on roll and pitch of vehicle
+        attitude_control->set_throttle_out(guided_angle_state.thrust, false, 0);
     }
     // If thrust isn't provided, use position controller to maintin altitude
     else{
