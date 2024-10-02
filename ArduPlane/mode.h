@@ -52,6 +52,7 @@ public:
         THERMAL       = 24,
 #if HAL_QUADPLANE_ENABLED
         LOITER_ALT_QLAND = 25,
+        AUXCTRL = 26,
 #endif
     };
 
@@ -226,6 +227,22 @@ public:
 
     // handle a guided target request from GCS
     bool handle_guided_request(Location target_loc) override;
+
+protected:
+
+    bool _enter() override;
+};
+
+class ModeAuxctrl : public Mode
+{ //add changes here
+public:
+
+    Number mode_number() const override { return Number::AUXCTRL; }
+    const char *name() const override { return "AUXCTRL"; }
+    const char *name4() const override { return "ACTL"; }
+
+    // methods that affect movement of the vehicle in this mode
+    void update() override;
 
 protected:
 
