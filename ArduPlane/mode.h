@@ -244,6 +244,9 @@ public:
     // methods that affect movement of the vehicle in this mode
     void update() override;
 
+    // only for vtol/quadplane mode
+    virtual bool is_vtol_mode() const { return true; }
+
 protected:
 
     bool _enter() override;
