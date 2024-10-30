@@ -60,7 +60,7 @@ public:
     Mode();
 
     // enter this mode, always returns true/success
-    bool enter();
+    bool enter(); 
 
     // perform any cleanups required:
     void exit();
@@ -121,6 +121,9 @@ public:
 
     // handle a guided target request from GCS
     virtual bool handle_guided_request(Location target_loc) { return false; }
+
+    // output directly to motors/servos
+    virtual void output_to_motors() { return; }
 
 protected:
 
@@ -246,6 +249,10 @@ public:
 
     // only for vtol/quadplane mode
     virtual bool is_vtol_mode() const { return true; }
+
+    // output to motors using individual thrusts
+    void output_to_motors() override;
+
 
 protected:
 
