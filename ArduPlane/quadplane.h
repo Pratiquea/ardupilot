@@ -195,9 +195,17 @@ public:
         Pos=1,
         Vel=2,
         Angle=3,
+        Accel=4,
     };
-
     SubMode get_submode() const { return qguided_sub_mode;}
+
+    enum class YawMode {
+        FixedYaw=0,        //NotImplemented; 
+        Yaw=1,             // Yaw setpoint, no yaw rate 
+        YawRate=2,         // Yaw rate setpoint, no yaw setpoint
+        YawAndYawRate=3,   // Both Yaw and Yaw rate setpoint
+    };
+    YawMode get_yawmode() const { return qguided_yaw_mode;}
 
     template <typename Enumeration>
     auto as_integer(Enumeration const value) -> typename std::underlying_type<Enumeration>::type
@@ -311,6 +319,9 @@ private:
 
     // initialise velocity controller for guided mode for quadplane configuration
     void vel_control_start();
+    
+    // initialise accel controller for guided mode for quadplane configuration
+    void accel_control_start();
 
     // set the vtol_loiter variable under auto_state struct of plane to true
     // i.e. enable VTOL behaviour
@@ -320,7 +331,7 @@ private:
     void angle_control_run();
 
     // initialize velocity controller for guided mode
-    void pos_and_vel_control_start();
+    void pva_control_start();
 
     // runs guided mode pause controller for quadplane configuration
     // essentially holds the vehicle in hover state
@@ -342,6 +353,9 @@ private:
     // velocity controller run/update for guided mode
     void vel_control_run();
 
+    // acceleration controller run/update for guided mode
+    void accel_control_run();
+
     // helper functions for setting velocity for pos_control
     void set_desired_velocity_with_zero_accel(const Vector3f& vel_des);
     
@@ -350,6 +364,10 @@ private:
     // set desired yaw for guided mode attitude controller
     void set_desired_yaw(const float& yaw_cd);
 
+    // set desired velocity setpoint/target for controller to track
+    void set_acceleration_setpoint(Vector3f& accel_vector, bool use_yaw=false, 
+        float yaw_cd=0.0, bool use_yaw_rate=false, float yaw_rate_cds=0.0, 
+        bool yaw_relative=false);
 
     // set desired velocity setpoint/target for controller to track
     void set_velocity_setpoint(const Vector3f& velocity, bool use_yaw = false,
@@ -451,6 +469,7 @@ private:
     // or VTOL configuration
     // SubMode qguided_sub_mode = SubMode::TakeOff;
     SubMode qguided_sub_mode = SubMode::Vel;
+    YawMode qguided_yaw_mode = YawMode::YawRate;
 
     // controls default state for guided submode. If a command is not received 
     // until timeout, the default state is used to maintain the vehicle in hover 

@@ -1367,10 +1367,6 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             bool yaw_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
             bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
 
-            // exit immediately if acceleration provided
-            if (!acc_ignore) {
-                break;
-            }
 
             // prepare position
             Vector3f pos_vector;
@@ -1402,6 +1398,17 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
                 }
             }
 
+            // prepare acceleration
+            Vector3f accel_vector;
+            if (!acc_ignore) {
+                // convert to cm
+                accel_vector = Vector3f(packet.afx * 100.0f, packet.afy * 100.0f, -packet.afz * 100.0f);
+                // rotate to body-frame if necessary
+                if (packet.coordinate_frame == MAV_FRAME_BODY_NED || packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED) {
+                    plane.rotate_body_frame_to_NE(accel_vector.x, accel_vector.y);
+                }
+            }
+
             // prepare yaw
             float yaw_cd = 0.0f;
             bool yaw_relative = false;
@@ -1415,15 +1422,23 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
             }
 
             // send request
-            // if (!pos_ignore && !vel_ignore) {
-                // plane.mode_guided.set_destination_posvel(pos_vector, vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
-            // } else 
-            if (pos_ignore && !vel_ignore) {
+            if (!pos_ignore && !vel_ignore) { //both position and velocity is provided
+                plane.quadplane.set_position_setpoint(pos_vector, vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative, true);
+            }
+            else if (pos_ignore && !vel_ignore) { //only velocity setpoint is provided
                 plane.quadplane.set_velocity_setpoint(vel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
             }
-            else if (!pos_ignore && vel_ignore) {
-                plane.quadplane.set_position_setpoint(pos_vector, Vector3f(), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative, false);
+            else if (pos_ignore && vel_ignore && !acc_ignore) {
+                plane.quadplane.set_acceleration_setpoint(accel_vector, !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative);
             }
+            else if (!pos_ignore && vel_ignore && acc_ignore) {
+                plane.quadplane.set_position_setpoint(pos_vector, Vector3f(), !yaw_ignore, yaw_cd, !yaw_rate_ignore, yaw_rate_cds, yaw_relative, false);
+            } 
+
+            // } else {
+            //     // input is not valid so stop
+            // }
+
 
         } else{ //plane is in fixed wing mode
             // only local moves for now

@@ -553,15 +553,18 @@ const AP_Param::ConversionInfo mot_pwm_conversion_table[] = {
 */
 
 #define GUIDED_POSVEL_TIMEOUT_MS    3000    // guided mode's position-velocity controller times out after 3 seconds with no new updates
+#define GUIDED_ACCEL_TIMEOUT_MS    500    // guided mode's accel controller times out after 0.5 seconds with no new updates
 // #define YAW_SP_TIMEOUT_MS           500     // timeout for settting desired yaw
 #define POS_SP_TIMEOUT_MS           1000     // timeout for settting desired yaw
 // #define GUIDED_ATTITUDE_TIMEOUT_MS  1000 // guided mode's attitude controller times out after 1 second with no new updates
 // static uint32_t log_time;
 static Vector3p guided_pos_target_cm;       // position target (used by posvel controller only)
 static Vector3f guided_vel_target_cms;      // velocity target (used by velocity controller and possibly pos controller)
+static Vector3f guided_accel_target_cmss;   // acceleration target (used by acceleration controller)
 // static uint32_t attitude_update_time_ms;         // system time of last target update to position controller
 // static uint32_t pos_update_time_ms;         // system time of last target update to position controller
 static uint32_t vel_update_time_ms;         // system time of last target update to velocity controller
+static uint32_t accel_update_time_ms;       // system time of last target update to accel controller
 static uint32_t last_yaw_sp_call;           // system time of last yaw setpoint sent to position controller
 static uint32_t last_pos_sp_call;           // system time of last position and yaw setpoint sent to position controller
 static const Vector3f default_velocity_guided = Vector3f(120., 120., 70.);
@@ -3628,6 +3631,10 @@ void QuadPlane::guided_update(void)
             case SubMode::Vel:
                 vel_control_run();
                 break;
+            
+            case SubMode::Accel:
+                accel_control_run();
+                break;
         }
         // // run VTOL position controller
         // vtol_position_controller();
@@ -3674,28 +3681,40 @@ void QuadPlane::angle_control_start(){
 void QuadPlane::pos_control_start(){
     qguided_sub_mode = SubMode::Pos;
 
-    pos_and_vel_control_start();
+    pva_control_start();
 }
 
 // Initialize guided mode's velocity controller in quadplane configuration
 void QuadPlane::vel_control_start(){
     qguided_sub_mode = SubMode::Vel;
 
-    pos_and_vel_control_start();
+    pva_control_start();
+}
+
+// Initialize guided mode's position controller in quadplane configuration
+void QuadPlane::accel_control_start(){
+    qguided_sub_mode = SubMode::Accel;
+    pva_control_start();
 }
 
 /*
     Initialization function for both position and velocity contoller in guided mode
 */
 
-void QuadPlane::pos_and_vel_control_start()
+void QuadPlane::pva_control_start()
 {
-    // in future set guided_mode to a submode called velocity; Not yet implemented
     pos_control->set_max_speed_accel_xy(wp_nav->get_default_speed_xy(),
                                         wp_nav->get_wp_acceleration());
+    pos_control->set_correction_speed_accel_xy(wp_nav->get_default_speed_xy(), 
+                                        wp_nav->get_wp_acceleration());
+    
     pos_control->set_max_speed_accel_z(wp_nav->get_default_speed_down(),
                                        wp_nav->get_default_speed_up(),
                                        wp_nav->get_accel_z());
+    pos_control->set_correction_speed_accel_z(wp_nav->get_default_speed_down(), 
+                                        wp_nav->get_default_speed_up(), 
+                                        wp_nav->get_accel_z());
+
 
     pos_control->init_z_controller();
     pos_control->init_xy_controller();
@@ -3915,6 +3934,54 @@ void QuadPlane::vel_control_run()
     attitude_control->input_thrust_vector_rate_heading(pos_control->get_thrust_vector(), des_yaw_rate_cds); 
 }
 
+/*
+    guided_accel_control_run - runs the guided accel controller
+    called from update method in guided mode
+*/
+void QuadPlane::accel_control_run()
+{
+    //set motors to full range
+    motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
+
+    // set velocity to zero and stop rotating if no updates received for 3 seconds
+    uint32_t tnow = millis();
+    if (tnow - accel_update_time_ms > GUIDED_POSVEL_TIMEOUT_MS) 
+    {
+        if (!pos_control->get_vel_desired_cms().is_zero()) 
+        {
+            // set desired velocity to zero
+            Vector3f zero_vec=Vector3f(0.0f, 0.0f, 0.0f);
+            set_desired_velocity_with_zero_accel(zero_vec);
+        }
+        set_desired_yaw_rate(0.0f);
+    }
+    else
+    {
+        // Vector2f accel_sp = guided_accel_target_cmss.x; 
+        pos_control->input_accel_xy(guided_accel_target_cmss);
+        pos_control->input_accel_z(guided_accel_target_cmss.z);
+        // pos_control->input_vel_accel_xy(vel_des_l_value.xy(),Vector2f());
+        // pos_control->input_vel_accel_z(vel_des_l_value.z, 0,false);
+        // pos_control->stop_pos_xy_stabilisation();
+    }
+
+    //call the velocity controller update function
+    pos_control->update_xy_controller(); 
+    pos_control->update_z_controller();
+
+    // call attitude controller
+    if (qguided_yaw_mode == YawMode::Yaw) {
+        // roll & pitch from position controller, yaw rate from pilot
+        attitude_control->input_thrust_vector_rate_heading(pos_control->get_thrust_vector(), des_yaw_cd);
+    } else if (qguided_yaw_mode == YawMode::YawRate) {
+        // roll & pitch from position controller, yaw rate from mavlink command or mission item
+        attitude_control->input_thrust_vector_rate_heading(pos_control->get_thrust_vector(), des_yaw_rate_cds);
+    } else if(qguided_yaw_mode == YawMode::YawAndYawRate) {
+        // roll & pitch from position controller, yaw heading from GCS or auto_heading()
+        attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), des_yaw_cd, des_yaw_rate_cds);
+    }
+}
+
 //helper function to set desired velocity for position controller
 void QuadPlane::set_desired_velocity_with_zero_accel(const Vector3f& vel_des)
 {
@@ -3990,8 +4057,6 @@ void QuadPlane::set_position_setpoint(const Vector3f& position,
     if(qguided_sub_mode != SubMode::Pos){
         pos_control_start();
     }
-    // // make position controller active
-    // vel_ctrl_active = false;
 
     last_pos_sp_call = millis();
 
@@ -4018,7 +4083,7 @@ void QuadPlane::set_position_setpoint(const Vector3f& position,
     }
     else if (!use_vel && position != Vector3f())
     {
-        gcs().send_text(MAV_SEVERITY_INFO, "no velocity provided; setting velocity to default");
+        // gcs().send_text(MAV_SEVERITY_INFO, "no velocity provided; setting velocity to default");
         guided_vel_target_cms = default_velocity_guided;
     }
     else
@@ -4030,7 +4095,7 @@ void QuadPlane::set_position_setpoint(const Vector3f& position,
     guided_pos_target_cm.x = position.x;
     guided_pos_target_cm.y = position.y;
     guided_pos_target_cm.z = position.z;
-    gcs().send_text(MAV_SEVERITY_INFO, "set pos sp to x:%0.2f, y:%0.2f, z:%0.2f",position.x/100.0, position.y/100.0, position.z/100.0);
+    // gcs().send_text(MAV_SEVERITY_INFO, "set pos sp to x:%0.2f, y:%0.2f, z:%0.2f",position.x/100.0, position.y/100.0, position.z/100.0);
 }
 
 // set velocity setpoint / desired velocity / target velocity for guided mode
@@ -4067,6 +4132,46 @@ void QuadPlane::set_velocity_setpoint(const Vector3f& velocity, bool use_yaw,
     //    plane.Log_Write_GuidedTarget(guided_mode, Vector3f(), velocity);
     //}
 }
+
+
+// set accel setpoint / desired accel / target /accel for guided mode
+void QuadPlane::set_acceleration_setpoint(Vector3f& accel_vector, bool use_yaw, float yaw_cd, bool use_yaw_rate, float yaw_rate_cds, bool yaw_relative)
+{
+   // check we are in velocity control mode
+    if (qguided_sub_mode != SubMode::Accel) {
+        accel_control_start();
+    }
+
+    // set yaw state
+    // if (use_yaw && relative_angle) {    //No support for relative yaw for now
+    //     auto_yaw.set_fixed_yaw(yaw_cd * 0.01f, 0.0f, 0, relative_angle);
+    // }
+    if (use_yaw && use_yaw_rate) {
+        qguided_yaw_mode = YawMode::YawAndYawRate;
+        set_desired_yaw_rate(yaw_rate_cds);
+        set_desired_yaw(yaw_cd);
+    } else if (use_yaw && !use_yaw_rate) {
+        qguided_yaw_mode = YawMode::Yaw;
+        set_desired_yaw(yaw_cd);
+    } else if (use_yaw_rate) {
+        qguided_yaw_mode = YawMode::YawRate;
+        set_desired_yaw_rate(yaw_rate_cds);
+    }
+
+    // set velocity and acceleration targets and zero position
+    guided_pos_target_cm.zero();
+    guided_vel_target_cms.zero();
+    guided_accel_target_cmss = accel_vector;
+    accel_update_time_ms = millis();
+
+    gcs().send_text(MAV_SEVERITY_INFO, "set acc sp to x:%0.2f, y:%0.2f, z:%0.2f",accel_vector.x/100.0, accel_vector.y/100.0, accel_vector.z/100.0);
+
+    // No logging for quadplane yet
+    // if (log_request) {
+    //     plane.Log_Write_Guided_Position_Target(guided_mode, guided_pos_target_cm.tofloat(), guided_pos_terrain_alt, guided_vel_target_cms, guided_accel_target_cmss);
+    // }
+}
+
 
 // set desired yaw rate for guided mode external nav controller
 void QuadPlane::set_desired_yaw_rate(const float& yaw_rate_cds)
