@@ -553,7 +553,7 @@ const AP_Param::ConversionInfo mot_pwm_conversion_table[] = {
 */
 
 #define GUIDED_POSVEL_TIMEOUT_MS    3000    // guided mode's position-velocity controller times out after 3 seconds with no new updates
-#define GUIDED_ACCEL_TIMEOUT_MS    500    // guided mode's accel controller times out after 0.5 seconds with no new updates
+#define GUIDED_ACCEL_TIMEOUT_MS    600    // guided mode's accel controller times out after 0.5 seconds with no new updates
 // #define YAW_SP_TIMEOUT_MS           500     // timeout for settting desired yaw
 #define POS_SP_TIMEOUT_MS           1000     // timeout for settting desired yaw
 // #define GUIDED_ATTITUDE_TIMEOUT_MS  1000 // guided mode's attitude controller times out after 1 second with no new updates
