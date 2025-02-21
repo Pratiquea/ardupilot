@@ -173,6 +173,38 @@ public:
     // called when we change mode (for any mode, not just Q modes)
     void mode_enter(void);
 
+    // puase guided mode
+    bool pause_qguided(void);
+
+    // resume guided mode
+    bool resume_qguided(void);
+
+    // convienence function to set the desired velocity targets to zero
+    void set_vel_guided_target_zero();
+
+    enum class SubMode {
+        // TakeOff=0,
+        Pos=1,
+        Vel=2,
+        Angle=3,
+        Accel=4,
+    };
+    SubMode get_submode() const { return qguided_sub_mode;}
+
+    enum class YawMode {
+        FixedYaw=0,        //NotImplemented; 
+        Yaw=1,             // Yaw setpoint, no yaw rate 
+        YawRate=2,         // Yaw rate setpoint, no yaw setpoint
+        YawAndYawRate=3,   // Both Yaw and Yaw rate setpoint
+    };
+    YawMode get_yawmode() const { return qguided_yaw_mode;}
+
+    template <typename Enumeration>
+    auto as_integer(Enumeration const value) -> typename std::underlying_type<Enumeration>::type
+    {
+        return static_cast<typename std::underlying_type<Enumeration>::type>(value);
+    }   
+
 private:
     AP_AHRS &ahrs;
     AP_Vehicle::MultiCopter aparm;
@@ -274,9 +306,23 @@ private:
     // i.e. enable VTOL behaviour
     void set_vtol_loiter(void);
 
+    // attitude controller run/update for guided mode
+    void angle_control_run();
+
+    // initialise attitude controller for guided mode for quadplane configuration
+    void angle_control_start();
+    
+    // initialise position controller for guided mode for quadplane configuration
+    void pos_control_start();
+
+    // initialise velocity controller for guided mode for quadplane configuration
+    void vel_control_start();
+    
+    // initialise accel controller for guided mode for quadplane configuration
+    void accel_control_start();
 
     // initialize velocity controller for guided mode
-    void pos_and_vel_control_start();
+    void pva_control_start();
 
     // position controller run/update for guided mode
     void pos_control_run();
@@ -285,8 +331,22 @@ private:
     void set_desired_position_velocity_with_zero_accel(const Vector3p& pos_des,
                                 const Vector3f& vel_des);
 
+    // helper function for setting desired attitude and thrust
+    void set_attitude_thrust_setpoint(const Quaternion &attitude_quat, 
+                                      const Vector3f &ang_vel, 
+                                      float climb_rate_cms_or_thrust, 
+                                      bool use_thrust);
+
     // velocity controller run/update for guided mode
     void vel_control_run();
+
+    // acceleration controller run/update for guided mode
+    void accel_control_run();
+
+    // set desired velocity setpoint/target for controller to track
+    void set_acceleration_setpoint(Vector3f& accel_vector, bool use_yaw=false, 
+        float yaw_cd=0.0, bool use_yaw_rate=false, float yaw_rate_cds=0.0, 
+        bool yaw_relative=false);
 
     // helper functions for setting velocity for pos_control
     void set_desired_velocity_with_zero_accel(const Vector3f& vel_des);
@@ -393,6 +453,18 @@ private:
 
     // control if a VTOL GUIDED will be used
     AP_Int8 guided_mode;
+
+
+    // controls which controller is run as a sumbode of guided mode in quadplane
+    // or VTOL configuration
+    // SubMode qguided_sub_mode = SubMode::TakeOff;
+    SubMode qguided_sub_mode = SubMode::Vel;
+    YawMode qguided_yaw_mode = YawMode::YawRate;
+
+    // controls default state for guided submode. If a command is not received 
+    // until timeout, the default state is used to maintain the vehicle in hover 
+    // state (holding position)
+    bool _paused;
 
     // control ESC throttle calibration
     AP_Int8 esc_calibration;

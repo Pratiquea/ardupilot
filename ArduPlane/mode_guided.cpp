@@ -64,8 +64,11 @@ bool ModeGuided::_enter()
             plane.quadplane.set_vtol_loiter();
         }
         // start in velocity control mode (maintaining similar behaviour to copter)
-        plane.quadplane.pos_and_vel_control_start();
-        gcs().send_text(MAV_SEVERITY_INFO,"initiated velocity control in guided mode");
+        plane.quadplane.resume_qguided();
+        // start in velocity control mode 
+        plane.quadplane.vel_control_start();
+        plane.quadplane.set_vel_guided_target_zero();
+        gcs().send_text(MAV_SEVERITY_INFO,"Entered guided mode");
     }
 
     return true;
