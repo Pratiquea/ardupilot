@@ -222,6 +222,15 @@ class VehicleInfo(object):
         "default_frame": "plane",
         "frames": {
             # PLANE
+
+
+            # GAZEBO SIM
+            "gazebo-minihawk": {
+                "waf_target": "bin/arduplane",
+                "default_params_filename": "default_params/ArduPlane_MiniHawk_Gazebo.parm",
+            },
+
+
             "quadplane-tilttri": {
                 "waf_target": "bin/arduplane",
                 "default_params_filename": "default_params/quadplane-tilttri.parm",
