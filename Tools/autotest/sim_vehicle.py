@@ -845,6 +845,8 @@ def start_mavproxy(opts, stuff):
         cmd.append('--map')
     if opts.console:
         cmd.append('--console')
+    if opts.streamrate is not None:
+        cmd.extend(['--streamrate', str(opts.streamrate)])
     if opts.aircraft is not None:
         cmd.extend(['--aircraft', opts.aircraft])
     if opts.moddebug:
@@ -1206,6 +1208,10 @@ group.add_option("", "--console",
                  help="load console module on startup")
 group.add_option("", "--aircraft",
                  default=None,
+                 help="store state and logs in named directory")
+group.add_option("", "--streamrate",
+                 default=None,
+                 type=int,
                  help="store state and logs in named directory")
 group.add_option("", "--moddebug",
                  default=0,
