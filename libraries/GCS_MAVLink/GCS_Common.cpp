@@ -97,6 +97,7 @@ struct GCS_MAVLINK::LastRadioStatus GCS_MAVLINK::last_radio_status;
 uint8_t GCS_MAVLINK::mavlink_active = 0;
 uint8_t GCS_MAVLINK::chan_is_streaming = 0;
 uint32_t GCS_MAVLINK::reserve_param_space_start_ms;
+// static uint32_t last_ms;
 
 // private channels are ones used for point-to-point protocols, and
 // don't get broadcasts or fwded packets
@@ -897,6 +898,7 @@ ap_message GCS_MAVLINK::mavlink_id_to_ap_message_id(const uint32_t mavlink_id) c
         { MAVLINK_MSG_ID_MAG_CAL_REPORT,        MSG_MAG_CAL_REPORT},
         { MAVLINK_MSG_ID_EKF_STATUS_REPORT,     MSG_EKF_STATUS_REPORT},
         { MAVLINK_MSG_ID_LOCAL_POSITION_NED,    MSG_LOCAL_POSITION},
+        { MAVLINK_MSG_ID_LOCAL_POSITION_NED_COV,MSG_LOCAL_POSITION_COV},
         { MAVLINK_MSG_ID_PID_TUNING,            MSG_PID_TUNING},
         { MAVLINK_MSG_ID_VIBRATION,             MSG_VIBRATION},
         { MAVLINK_MSG_ID_RPM,                   MSG_RPM},
@@ -2451,6 +2453,7 @@ void GCS_MAVLINK::send_local_position() const
         // we don't know the position and velocity
         return;
     }
+    // send_text(MAV_SEVERITY_INFO,"publishing lcoal pos");
 
     mavlink_msg_local_position_ned_send(
         chan,
@@ -2461,6 +2464,86 @@ void GCS_MAVLINK::send_local_position() const
         velocity.x,
         velocity.y,
         velocity.z);
+}
+
+/*
+  send LOCAL_POSITION_NED message
+ */
+void GCS_MAVLINK::send_local_position_cov() const
+{
+    const AP_AHRS &ahrs = AP::ahrs();
+    // send_text(MAV_SEVERITY_INFO,"send local position cov called");
+    Vector3f local_position, velocity, accel;
+    Vector3f a_, b_, d_, e_, f_, g_, i_,k_;
+    uint8_t ekf_type;
+    
+    if (!ahrs.get_relative_position_NED_origin(local_position) ||
+        !ahrs.get_velocity_NED(velocity) ||
+        // !ahrs.get_accel_NED(accel) ||
+        !ahrs.get_cov(a_, b_, d_, e_, f_, g_, i_,k_,ekf_type)
+        ) {
+        // send_text(MAV_SEVERITY_INFO,"ekf type=%d",ekf_type);
+        // we don't know the position and velocity
+        return;
+    }
+    float cov_[45];
+    // Fill the output array with NaN initially
+    for (uint8_t i = 0; i < 45; ++i) {
+        cov_[i] = NAN;
+    }
+    cov_[0] = a_.x; //0
+    cov_[1] = a_.y; //1
+    cov_[2] = a_.z; //2
+    cov_[3] = b_.x; //3
+    cov_[4] = b_.y; //4
+    cov_[5] = b_.z; //5
+    cov_[9] = d_.x; //9
+    cov_[10] = d_.y; //10
+    cov_[11] = d_.z; //11
+    cov_[12] = e_.x; //12
+    cov_[13] = e_.y; //13
+    cov_[17] = f_.z; //17
+    cov_[18] = g_.x; //18
+    cov_[19] = g_.y; //19
+    cov_[20] = g_.z; //20
+    cov_[24] = i_.x; //24
+    cov_[25] = i_.y; //25
+    cov_[26] = i_.z; //26
+    cov_[30] = k_.x; //30
+    cov_[31] = k_.y; //31
+    cov_[32] = k_.z; //32
+
+    // uint32_t time_now = AP_HAL::millis();
+    // if(last_ms - time_now>=3000){
+    //     for (uint8_t i = 0; i < 45; ++i) {
+    //         if(cov_[i] == NAN){
+    //             send_text(MAV_SEVERITY_INFO,"cov [%d] %f",i,cov_[i]);
+    //         }
+    //         else{
+    //             send_text(MAV_SEVERITY_INFO,"cov else [%d] %f",i,cov_[i]);
+    //         }
+    //     }
+    //     last_ms = time_now;
+    // }
+    // need switch case to get corresponding ekf type
+    uint8_t est_type_ =  MAV_ESTIMATOR_TYPE::MAV_ESTIMATOR_TYPE_GPS_INS; //hardcoded for testing; needs to be changed; https://mavlink.io/en/messages/common.html#MAV_ESTIMATOR_TYPE
+    // mavlink_msg_local_position_ned_cov_send(mavlink_channel_t chan, uint64_t time_usec, uint8_t estimator_type, float x, float y, float z, float vx, float vy, float vz, float ax, float ay, float az, const float *covariance)
+    mavlink_msg_local_position_ned_cov_send(
+        chan,
+        AP_HAL::millis(),
+        est_type_, //hardcoded
+        local_position.x,
+        local_position.y,
+        local_position.z,
+        velocity.x,
+        velocity.y,
+        velocity.z,
+        NAN, //accel is not estimated
+        NAN,
+        NAN,
+        cov_
+        );
+        // send_text(MAV_SEVERITY_INFO,"publishing cov");
 }
 
 /*
@@ -5296,6 +5379,14 @@ bool GCS_MAVLINK::try_send_message(const enum ap_message id)
     case MSG_LOCAL_POSITION:
         CHECK_PAYLOAD_SIZE(LOCAL_POSITION_NED);
         send_local_position();
+        // Move send_local_position_cov to appropriate case
+        CHECK_PAYLOAD_SIZE(LOCAL_POSITION_NED_COV);
+        send_local_position_cov();
+        break;
+
+    case MSG_LOCAL_POSITION_COV:
+        CHECK_PAYLOAD_SIZE(LOCAL_POSITION_NED_COV);
+        send_local_position_cov();
         break;
 
     case MSG_MOUNT_STATUS:

@@ -259,6 +259,64 @@ bool NavEKF3_core::getPosD(float &posD) const
 
 }
 
+
+bool NavEKF3_core::getCovariance(
+    Vector3f &a, Vector3f &b, Vector3f &d, Vector3f &e, 
+    Vector3f &f, Vector3f &g, Vector3f &i, Vector3f &k) const{
+    if(P==NULL){
+        return false;
+    }
+    // position indices are: 7,8,9
+    // velocity indices are: 4,5,6
+    // extracting relavant indices from upper right triangle in Matrix P
+    a.x = P[7][7]; //index 0,  p1.p1
+    a.y = P[7][8]; //index 1,  p1.p2
+    a.z = P[7][9]; //index 2,  p1.p3
+    b.x = P[4][7]; //index 3,  p1.v1
+    b.y = P[4][8]; //index 4,  p1.v2
+    b.z = P[4][9]; //index 5,  p1.v3
+    // c.x = NAN; //index 6, 
+    // c.y = NAN; //index 7,
+    // c.z = NAN; //index 8,
+    d.x = P[8][8]; //index 9,  p2.p2
+    d.y = P[8][9]; //index 10, p2.p3
+    d.z = P[5][7]; //index 11, p2.v1
+    e.x = P[5][8]; //index 12, p2.v2
+    e.y = P[5][9]; //index 13, p2.v3
+    e.z = NAN; //index 14,
+    f.x = NAN; //index 15, 
+    f.y = NAN; //index 16,
+    f.z = P[9][9]; //index 17, p3.p3
+    g.x = P[6][7]; //index 18, p3.v1
+    g.y = P[6][8]; //index 19, p3.v2
+    g.z = P[6][9]; //index 20, p3.v3
+    // h.x = NAN; //index 21, 
+    // h.y = NAN; //index 22,
+    // h.z = NAN; //index 23,
+    i.x = P[7][7]; //index 24, v1.v1
+    i.y = P[7][8]; //index 25  v1.v2
+    i.z = P[7][9]; //index 26  v1.v3
+    // j.x = NAN; //index 27, 
+    // j.y = NAN; //index 28,
+    // j.z = NAN; //index 29
+    k.x = P[8][8]; //index 30, v2.v2
+    k.y = P[8][9]; //index 31, v2.v3
+    k.z = P[9][9]; //index 32, v3.v3
+    // l.x = P[][]; //index 33, 
+    // l.y = P[][]; //index 34,
+    // l.z = P[][]; //index 35,
+    // m.x = P[][]; //index 36, 
+    // m.y = P[][]; //index 37,
+    // m.z = P[][]; //index 38,
+    // n.x = P[][]; //index 39, 
+    // n.y = P[][]; //index 40,
+    // n.z = P[][]; //index 41,
+    // o.x = P[][]; //index 42, 
+    // o.y = P[][]; //index 42,
+    // o.z = P[][]; //index 44,
+    return true;
+}
+
 // return the estimated height of body frame origin above ground level
 bool NavEKF3_core::getHAGL(float &HAGL) const
 {

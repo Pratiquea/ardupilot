@@ -445,6 +445,12 @@ uint32_t GCS_MAVLINK_Plane::telem_delay() const
 // try to send a message, return false if it won't fit in the serial tx buffer
 bool GCS_MAVLINK_Plane::try_send_message(enum ap_message id)
 {
+    // if(id == ap_message::MSG_LOCAL_POSITION){
+    // send_text(MAV_SEVERITY_INFO," MSG_LOCAL_POSITION id: %d",id);
+    // }
+    // if(id == ap_message::MSG_LOCAL_POSITION_COV){
+    // send_text(MAV_SEVERITY_INFO," MSG_LOCAL_POSITION_COV id: %d",id);
+    // }
     switch (id) {
 
     case MSG_SERVO_OUT:
@@ -1429,7 +1435,9 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         Vector3f pos_vector;
         if (!pos_ignore) {
             // convert to cm
+            gcs().send_text(MAV_SEVERITY_INFO, "mavlink pos x:%0.2f, y:%0.2f ,z:%0.2f, frame=%d",packet.x, packet.y, packet.z, packet.coordinate_frame);
             pos_vector = Vector3f(packet.x * 100.0f, packet.y * 100.0f, -packet.z * 100.0f);
+            gcs().send_text(MAV_SEVERITY_INFO, "pos x:%0.2f, y:%0.2f ,z:%0.2f, frame=%d",pos_vector.x/100.0f, pos_vector.y/100.0f, pos_vector.z/100.0f, packet.coordinate_frame);
             // rotate to body-frame if necessary
             if (packet.coordinate_frame == MAV_FRAME_BODY_NED ||
                 packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED) {
@@ -1442,12 +1450,16 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
                 pos_vector += plane.quadplane.inertial_nav.get_position_neu_cm();
             }
         }
+        // Vector3f offset = plane.quadplane.inertial_nav.get_position_neu_cm();
+        // gcs().send_text(MAV_SEVERITY_INFO, "offset pos x:%0.2f, y:%0.2f ,z:%0.2f",offset.x, offset.y, offset.z);
+        
 
         // prepare velocity
         Vector3f vel_vector;
         if (!vel_ignore) {
             // convert to cm
             vel_vector = Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f);
+            gcs().send_text(MAV_SEVERITY_INFO, "vel x:%0.2f, y:%0.2f ,z:%0.2f",vel_vector.x/100.0f, vel_vector.y/100.0f, vel_vector.z/100.0f);
             // rotate to body-frame if necessary
             if (packet.coordinate_frame == MAV_FRAME_BODY_NED || packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED) {
                 // assuming rotate_body_frame_to_NE is implemented

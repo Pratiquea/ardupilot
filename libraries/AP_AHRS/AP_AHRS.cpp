@@ -658,6 +658,7 @@ void AP_AHRS::update_SITL(void)
 
 #if HAL_NAVEKF3_AVAILABLE
     if (_sitl->odom_enable) {
+        // GCS_SEND_TEXT(MAV_SEVERITY_INFO,"odom");
         // use SITL states to write body frame odometry data at 20Hz
         uint32_t timeStamp_ms = AP_HAL::millis();
         if (timeStamp_ms - _last_body_odm_update_ms > 50) {
@@ -769,6 +770,7 @@ bool AP_AHRS::get_location(struct Location &loc) const
 #if AP_AHRS_SIM_ENABLED
     case EKFType::SIM: {
         if (_sitl) {
+            // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "get_loc sitl::sitl_fdm");
             const struct SITL::sitl_fdm &fdm = _sitl->state;
             loc = {};
             loc.lat = fdm.latitude * 1e7;
@@ -1609,6 +1611,90 @@ bool AP_AHRS::get_relative_position_NED_origin(Vector3f &vec) const
                            -(loc.alt - orgn.alt)*0.01);
             return true;
         }
+        return false;
+    }
+#endif
+    }
+    // since there is no default case above, this is unreachable
+    return false;
+}
+
+// return covariance 
+// North/East/Down order.
+bool AP_AHRS::get_cov(Vector3f &a, Vector3f &b, Vector3f &d, Vector3f &e, 
+    Vector3f &f, Vector3f &g, Vector3f &i, Vector3f &k,uint8_t &ekf_type) const
+{
+    ekf_type = static_cast<uint8_t>(active_EKF_type());
+    switch (active_EKF_type()) {
+    case EKFType::NONE:
+        // Not implemented
+        return false;
+
+#if HAL_NAVEKF2_AVAILABLE
+    case EKFType::TWO: {
+        // not implemented
+        return false;
+    }
+#endif
+
+#if HAL_NAVEKF3_AVAILABLE
+    case EKFType::THREE: {
+            Vector3f a_, b_, d_, e_, f_, g_, i_,k_;
+            if(EKF3.getCov(a_, b_, d_, e_, f_, g_, i_,k_)){
+                a = a_;
+                b = b_;
+                d = d_;
+                e = e_;
+                f = f_;
+                g = g_;
+                i = i;
+                k = k_;
+                return true;
+            }
+            // if (EKF3.getPosNE(posNE) && EKF3.getPosD(posD)) {
+            //     // position is valid
+            //     vec.x = posNE.x;
+            //     vec.y = posNE.y;
+            //     vec.z = posD;
+            //     return true;
+            // }
+            return false;
+        }
+#endif
+
+#if AP_AHRS_SIM_ENABLED
+    case EKFType::SIM: {
+        if (!_sitl) {
+            return false;
+        }
+        // Location loc, orgn;
+        // if (!get_location(loc) ||
+        //     !get_origin(orgn)) {
+        //     return false;
+        // }
+        // const Vector2f diff2d = orgn.get_distance_NE(loc);
+        // const struct SITL::sitl_fdm &fdm = _sitl->state;
+        // vec = Vector3f(diff2d.x, diff2d.y,
+        //                -(fdm.altitude - orgn.alt*0.01f));
+        // return true;
+        Vector3f a_, b_, d_, e_, f_, g_, i_,k_;
+        if(EKF3.getCov(a_, b_, d_, e_, f_, g_, i_,k_)){
+                a = a_;
+                b = b_;
+                d = d_;
+                e = e_;
+                f = f_;
+                g = g_;
+                i = i;
+                k = k_;
+                return true;
+            }
+        return false;
+    }
+#endif
+#if HAL_EXTERNAL_AHRS_ENABLED
+    case EKFType::EXTERNAL: {
+        // not implemented
         return false;
     }
 #endif

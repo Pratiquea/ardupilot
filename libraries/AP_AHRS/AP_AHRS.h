@@ -215,6 +215,11 @@ public:
     // return true if the estimate is valid
     bool get_relative_position_NED_home(Vector3f &vec) const WARN_IF_UNUSED;
     bool get_relative_position_NED_origin(Vector3f &vec) const WARN_IF_UNUSED;
+    
+    // returns the covariance estimated from EKF
+    // returns true if cov is available
+    bool get_cov(Vector3f &a, Vector3f &b, Vector3f &d, Vector3f &e, 
+    Vector3f &f, Vector3f &g, Vector3f &i, Vector3f &k, uint8_t &ekf_type) const WARN_IF_UNUSED;
 
     // return the relative position NE to either home or origin
     // return true if the estimate is valid

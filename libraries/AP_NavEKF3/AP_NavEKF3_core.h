@@ -144,6 +144,11 @@ public:
     // If false returned, do not use for flight control
     bool getPosD(float &posD) const;
 
+    // Write the last calculated covariance for position and velocity
+    bool getCovariance(Vector3f &a, Vector3f &b, Vector3f &d, Vector3f &e, 
+    Vector3f &f, Vector3f &g, Vector3f &i, Vector3f &k) const;
+    // Vector3f &k, Vector3f &l, Vector3f &m, Vector3f &n, Vector3f &o ) const;
+
     // return NED velocity in m/s
     void getVelNED(Vector3f &vel) const;
 
@@ -483,6 +488,7 @@ private:
     typedef ftype Vector23[23];
     typedef ftype Vector24[24];
     typedef ftype Vector25[25];
+    typedef ftype Vector45[45];
     typedef ftype Matrix3[3][3];
     typedef ftype Matrix24[24][24];
     typedef ftype Matrix34_50[34][50];

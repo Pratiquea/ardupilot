@@ -1173,6 +1173,19 @@ bool NavEKF3::getPosD(float &posD) const
     return core[primary].getPosD(posD);
 }
 
+// Write the last cov.
+// If a calculated solution is not available, use the best available data and return false
+// If false returned, do not use for flight control
+bool NavEKF3::getCov(
+    Vector3f &a, Vector3f &b, Vector3f &d, Vector3f &e, 
+    Vector3f &f, Vector3f &g, Vector3f &i, Vector3f &k) const
+{
+    if (!core) {
+        return false;
+    }
+    return core[primary].getCovariance(a, b, d, e, f, g, i,k);
+}
+
 // return NED velocity in m/s
 void NavEKF3::getVelNED(Vector3f &vel) const
 {

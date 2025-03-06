@@ -3580,7 +3580,9 @@ void QuadPlane::guided_update(void)
         {
             log_time = tnow;
             // gcs().send_text(MAV_SEVERITY_INFO, "curr target pos x:%0.2f, y:%0.2f, z:%0.2f",guided_pos_target_cm.x/100.0, guided_pos_target_cm.y/100.0, guided_pos_target_cm.z/100.0);
-            gcs().send_text(MAV_SEVERITY_INFO, "curr target acc x:%0.2f, y:%0.2f, z:%0.2f",guided_accel_target_cmss.x/100.0, guided_accel_target_cmss.y/100.0, guided_accel_target_cmss.z/100.0);
+            gcs().send_text(MAV_SEVERITY_INFO, "tar pos x:%0.2f, y:%0.2f, z:%0.2f",guided_pos_target_cm.x/100.0, guided_pos_target_cm.y/100.0, guided_pos_target_cm.z/100.0);
+            gcs().send_text(MAV_SEVERITY_INFO, "tar vel x:%0.2f, y:%0.2f, z:%0.2f",guided_vel_target_cms.x/100.0, guided_vel_target_cms.y/100.0, guided_vel_target_cms.z/100.0);
+            gcs().send_text(MAV_SEVERITY_INFO, "tar acc x:%0.2f, y:%0.2f, z:%0.2f",guided_accel_target_cmss.x/100.0, guided_accel_target_cmss.y/100.0, guided_accel_target_cmss.z/100.0);
         }
 
     }
