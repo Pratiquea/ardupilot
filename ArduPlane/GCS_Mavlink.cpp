@@ -1431,13 +1431,17 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         bool yaw_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
         bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
 
+        // adding hardcoded position offsets coz of a bug. if pos setpiont is 0m,0m,1m, vehicle goes to 
+        // x:2.215042m, y: 2.215042m, z:1.529999m
+        Vector3f pos_offset = Vector3f(221.5042, 221.5042, 52.9999);
         // prepare position
         Vector3f pos_vector;
         if (!pos_ignore) {
             // convert to cm
-            gcs().send_text(MAV_SEVERITY_INFO, "mavlink pos x:%0.2f, y:%0.2f ,z:%0.2f, frame=%d",packet.x, packet.y, packet.z, packet.coordinate_frame);
+            // gcs().send_text(MAV_SEVERITY_INFO, "mavlink pos x:%0.2f, y:%0.2f ,z:%0.2f, frame=%d",packet.x, packet.y, packet.z, packet.coordinate_frame);
             pos_vector = Vector3f(packet.x * 100.0f, packet.y * 100.0f, -packet.z * 100.0f);
-            gcs().send_text(MAV_SEVERITY_INFO, "pos x:%0.2f, y:%0.2f ,z:%0.2f, frame=%d",pos_vector.x/100.0f, pos_vector.y/100.0f, pos_vector.z/100.0f, packet.coordinate_frame);
+            pos_vector -= pos_offset;
+            // gcs().send_text(MAV_SEVERITY_INFO, "pos x:%0.2f, y:%0.2f ,z:%0.2f, frame=%d",pos_vector.x/100.0f, pos_vector.y/100.0f, pos_vector.z/100.0f, packet.coordinate_frame);
             // rotate to body-frame if necessary
             if (packet.coordinate_frame == MAV_FRAME_BODY_NED ||
                 packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED) {
