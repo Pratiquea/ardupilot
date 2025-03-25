@@ -544,7 +544,7 @@ const AP_Param::ConversionInfo q_conversion_table[] = {
 // #define YAW_SP_TIMEOUT_MS           500     // timeout for settting desired yaw
 #define POS_SP_TIMEOUT_MS           1000     // timeout for settting desired yaw
 // #define GUIDED_ATTITUDE_TIMEOUT_MS  1000 // guided mode's attitude controller times out after 1 second with no new updates
-static uint32_t log_time;
+// static uint32_t log_time;
 static Vector3p guided_pos_target_cm;       // position target (used by posvel controller only)
 static Vector3f guided_vel_target_cms;      // velocity target (used by velocity controller and possibly pos controller)
 static Vector3f guided_accel_target_cmss;   // acceleration target (used by acceleration controller)
@@ -3575,15 +3575,15 @@ void QuadPlane::guided_update(void)
                 break;
         }
 
-        uint32_t tnow = millis();
-        if(tnow - log_time > 3000)
-        {
-            log_time = tnow;
-            // gcs().send_text(MAV_SEVERITY_INFO, "curr target pos x:%0.2f, y:%0.2f, z:%0.2f",guided_pos_target_cm.x/100.0, guided_pos_target_cm.y/100.0, guided_pos_target_cm.z/100.0);
-            gcs().send_text(MAV_SEVERITY_INFO, "tar pos x:%0.2f, y:%0.2f, z:%0.2f",guided_pos_target_cm.x/100.0, guided_pos_target_cm.y/100.0, guided_pos_target_cm.z/100.0);
-            gcs().send_text(MAV_SEVERITY_INFO, "tar vel x:%0.2f, y:%0.2f, z:%0.2f",guided_vel_target_cms.x/100.0, guided_vel_target_cms.y/100.0, guided_vel_target_cms.z/100.0);
-            gcs().send_text(MAV_SEVERITY_INFO, "tar acc x:%0.2f, y:%0.2f, z:%0.2f",guided_accel_target_cmss.x/100.0, guided_accel_target_cmss.y/100.0, guided_accel_target_cmss.z/100.0);
-        }
+        // uint32_t tnow = millis();
+        // if(tnow - log_time > 3000)
+        // {
+        //     log_time = tnow;
+        //     // gcs().send_text(MAV_SEVERITY_INFO, "curr target pos x:%0.2f, y:%0.2f, z:%0.2f",guided_pos_target_cm.x/100.0, guided_pos_target_cm.y/100.0, guided_pos_target_cm.z/100.0);
+        //     gcs().send_text(MAV_SEVERITY_INFO, "tar pos x:%0.2f, y:%0.2f, z:%0.2f",guided_pos_target_cm.x/100.0, guided_pos_target_cm.y/100.0, guided_pos_target_cm.z/100.0);
+        //     gcs().send_text(MAV_SEVERITY_INFO, "tar vel x:%0.2f, y:%0.2f, z:%0.2f",guided_vel_target_cms.x/100.0, guided_vel_target_cms.y/100.0, guided_vel_target_cms.z/100.0);
+        //     gcs().send_text(MAV_SEVERITY_INFO, "tar acc x:%0.2f, y:%0.2f, z:%0.2f",guided_accel_target_cmss.x/100.0, guided_accel_target_cmss.y/100.0, guided_accel_target_cmss.z/100.0);
+        // }
 
     }
 }
@@ -3893,7 +3893,7 @@ void QuadPlane::accel_control_run()
     // call attitude controller
     if (qguided_yaw_mode == YawMode::Yaw) {
         // roll & pitch from position controller, yaw rate from pilot
-        attitude_control->input_thrust_vector_rate_heading(pos_control->get_thrust_vector(), des_yaw_cd);
+        attitude_control->input_thrust_vector_heading(pos_control->get_thrust_vector(), des_yaw_cd, 0.7);
     } else if (qguided_yaw_mode == YawMode::YawRate) {
         // roll & pitch from position controller, yaw rate from mavlink command or mission item
         attitude_control->input_thrust_vector_rate_heading(pos_control->get_thrust_vector(), des_yaw_rate_cds);

@@ -1433,7 +1433,7 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
 
         // adding hardcoded position offsets coz of a bug. if pos setpiont is 0m,0m,1m, vehicle goes to 
         // x:2.215042m, y: 2.215042m, z:1.529999m
-        Vector3f pos_offset = Vector3f(221.5042, 221.5042, 52.9999);
+        Vector3f pos_offset = Vector3f(221.5042, 221.5042, 50.0999);
         // prepare position
         Vector3f pos_vector;
         if (!pos_ignore) {
@@ -1463,7 +1463,7 @@ void GCS_MAVLINK_Plane::handleMessage(const mavlink_message_t &msg)
         if (!vel_ignore) {
             // convert to cm
             vel_vector = Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f);
-            gcs().send_text(MAV_SEVERITY_INFO, "vel x:%0.2f, y:%0.2f ,z:%0.2f",vel_vector.x/100.0f, vel_vector.y/100.0f, vel_vector.z/100.0f);
+            // gcs().send_text(MAV_SEVERITY_INFO, "vel x:%0.2f, y:%0.2f ,z:%0.2f",vel_vector.x/100.0f, vel_vector.y/100.0f, vel_vector.z/100.0f);
             // rotate to body-frame if necessary
             if (packet.coordinate_frame == MAV_FRAME_BODY_NED || packet.coordinate_frame == MAV_FRAME_BODY_OFFSET_NED) {
                 // assuming rotate_body_frame_to_NE is implemented
